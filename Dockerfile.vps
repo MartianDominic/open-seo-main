@@ -22,6 +22,14 @@ COPY . .
 # Build produces .output/server/index.mjs (Nitro) + .output/public/ (static assets)
 RUN pnpm run build
 
+# Compile standalone worker entry to .output/worker-entry.mjs
+# esbuild is a transitive dep of vite; --packages=external keeps node_modules unbundled
+# so the pruned prod node_modules (copied to runtime) satisfies all imports at runtime.
+RUN pnpm exec esbuild src/worker-entry.ts \
+        --bundle --platform=node --format=esm --target=node22 \
+        --outfile=.output/worker-entry.mjs \
+        --packages=external
+
 # Prune dev deps for runtime copy
 RUN pnpm prune --prod
 
