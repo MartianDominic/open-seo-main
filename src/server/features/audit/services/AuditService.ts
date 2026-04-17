@@ -13,6 +13,7 @@ import {
   type LighthouseStrategy,
 } from "@/server/lib/audit/types";
 import { normalizeAndValidateStartUrl } from "@/server/lib/audit/url-policy";
+import { auditQueue, AUDIT_STEP, type AuditJobData } from "@/server/queues/auditQueue";
 
 async function startAudit(input: {
   actorUserId: string;
@@ -52,12 +53,30 @@ async function startAudit(input: {
     lighthouseTotal: reservation.lighthouseTotal,
   });
 
-  // Phase 2: BullMQ queue not yet wired. Undo the DB insert and surface the error.
-  await AuditRepository.deleteAuditForProject(auditId, input.projectId);
-  throw new AppError(
-    "INTERNAL_ERROR",
-    "Audits are disabled until Phase 3 wires the BullMQ queue.",
-  );
+  const jobData: AuditJobData = {
+    auditId,
+    projectId: input.projectId,
+    startUrl,
+    config,
+    billingCustomer: input.billingCustomer,
+    step: AUDIT_STEP.DISCOVER,
+  };
+
+  try {
+    // jobId: auditId → BQ-02 deduplication. A second startAudit with the
+    // same auditId is a no-op on the queue side (BullMQ rejects duplicates).
+    await auditQueue.add(`audit-${auditId}`, jobData, { jobId: auditId });
+  } catch (err) {
+    // Rollback DB insert so we don't leave an orphaned audit row if enqueue
+    // fails (e.g., Redis down). Preserves Phase-2 rollback semantics.
+    await AuditRepository.deleteAuditForProject(auditId, input.projectId);
+    throw new AppError(
+      "INTERNAL_ERROR",
+      `Failed to enqueue audit job: ${err instanceof Error ? err.message : String(err)}`,
+    );
+  }
+
+  return { auditId };
 }
 
 async function getStatus(auditId: string, projectId: string) {
@@ -172,12 +191,16 @@ async function remove(auditId: string, projectId: string) {
   }
 
   if (audit.status === "running") {
-    // Phase 2 cannot terminate running audits because the BullMQ worker
-    // is not yet wired. Mark the audit as stale rather than terminating it.
-    throw new AppError(
-      "CONFLICT",
-      "Running audits cannot be deleted until Phase 3 enables the BullMQ queue.",
-    );
+    // Cancel the running BullMQ job so the Worker stops before we delete the row.
+    const job = await auditQueue.getJob(auditId);
+    if (job) {
+      try {
+        await job.remove();
+      } catch {
+        // Job may already be active; best-effort cancellation. The Worker will
+        // write to a deleted audit row and fail gracefully on the final DB step.
+      }
+    }
   }
 
   await AuditRepository.deleteAuditForProject(auditId, projectId);
