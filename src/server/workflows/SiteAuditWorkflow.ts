@@ -1,27 +1,10 @@
 /**
- * Phase-2 stub for the site-audit workflow.
+ * Phase-3 replacement: the BullMQ worker at src/server/workers/audit-worker.ts
+ * now drives the audit pipeline. This file is kept only as a type-only
+ * re-export so any stale import of `AuditParams` outside this plan's scope
+ * still type-checks.
  *
- * Cloudflare Workflows are removed. Phase 3 introduces
- * BullMQ; the real worker will live at src/server/workers/audit-worker.ts.
- *
- * This file remains so historical imports continue to type-check. The
- * exported class throws if run() is invoked directly.
+ * DO NOT import SiteAuditWorkflow class — it is deleted. Use
+ * `auditQueue.add(auditId, jobData, { jobId: auditId })` (see AuditService).
  */
-import type { BillingCustomerContext } from "@/server/billing/subscription";
-import type { AuditConfig } from "@/server/lib/audit/types";
-
-export interface AuditParams {
-  auditId: string;
-  billingCustomer: BillingCustomerContext;
-  projectId: string;
-  startUrl: string;
-  config: AuditConfig;
-}
-
-export class SiteAuditWorkflow {
-  async run(_params: AuditParams): Promise<never> {
-    throw new Error(
-      "SiteAuditWorkflow is disabled in Phase 2. BullMQ audit worker is introduced in Phase 3.",
-    );
-  }
-}
+export type { AuditJobData as AuditParams } from "@/server/queues/auditQueue";
