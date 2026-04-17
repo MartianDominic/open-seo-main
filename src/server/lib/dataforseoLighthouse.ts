@@ -1,4 +1,3 @@
-import { env } from "cloudflare:workers";
 import {
   parseDataforseoLighthousePayload,
   requestCategories,
@@ -17,7 +16,7 @@ export async function fetchDataforseoLighthouseResultRaw(input: {
   const response = await fetch(DATAFORSEO_LIGHTHOUSE_ENDPOINT, {
     method: "POST",
     headers: {
-      Authorization: `Basic ${env.DATAFORSEO_API_KEY?.trim() ?? ""}`,
+      Authorization: `Basic ${process.env.DATAFORSEO_API_KEY?.trim() ?? ""}`,
       "Content-Type": "application/json",
     },
     body: JSON.stringify([

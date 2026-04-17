@@ -1,4 +1,3 @@
-import { env } from "cloudflare:workers";
 import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { tanstackStartCookies } from "better-auth/tanstack-start";
@@ -53,7 +52,7 @@ function createAuth() {
     },
     trustedOrigins: getTrustedOrigins(baseUrl),
     database: drizzleAdapter(db, {
-      provider: "sqlite",
+      provider: "pg",
     }),
     plugins: [...baseAuthConfig.plugins, tanstackStartCookies()],
     databaseHooks: {
@@ -98,7 +97,7 @@ function getTrustedOrigins(baseUrl: string) {
 }
 
 function getHostedBaseUrl() {
-  const baseUrl = env.BETTER_AUTH_URL?.trim();
+  const baseUrl = process.env.BETTER_AUTH_URL?.trim();
 
   if (!baseUrl) {
     throw new Error("BETTER_AUTH_URL is required in hosted mode");
@@ -108,7 +107,7 @@ function getHostedBaseUrl() {
 }
 
 function getHostedSecret() {
-  const secret = env.BETTER_AUTH_SECRET?.trim();
+  const secret = process.env.BETTER_AUTH_SECRET?.trim();
 
   if (!secret) {
     throw new Error("BETTER_AUTH_SECRET is required in hosted mode");
@@ -129,7 +128,7 @@ function hasHostedAuthEmailConfig() {
   ];
 
   return loopsVars.every((name) => {
-    const value: unknown = Reflect.get(env, name);
+    const value = process.env[name];
     return typeof value === "string" && value.trim() !== "";
   });
 }

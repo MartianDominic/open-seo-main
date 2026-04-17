@@ -1,18 +1,16 @@
-import { env } from "cloudflare:workers";
 import { PostHog } from "posthog-node";
 import { isHostedServerAuthMode } from "@/server/lib/runtime-env";
 
-/** Returns a one-shot PostHog client, or null if the key is missing. Caller must shut down after use.
- *  A new instance per call is fine — this runs on Cloudflare Workers where construction cost is negligible. */
+/** Returns a one-shot PostHog client, or null if the key is missing. Caller must shut down after use. */
 function getServerPostHogClient(): PostHog | null {
-  const apiKey = env.POSTHOG_PUBLIC_KEY?.trim();
-  const host = env.POSTHOG_HOST?.trim();
+  const apiKey = process.env.POSTHOG_PUBLIC_KEY?.trim();
+  const host = process.env.POSTHOG_HOST?.trim();
   if (!apiKey || !host) return null;
 
   return new PostHog(apiKey, {
     host,
-    flushAt: 1,
-    flushInterval: 0,
+    flushAt: 20,
+    flushInterval: 10_000,
   });
 }
 

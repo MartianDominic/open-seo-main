@@ -1,25 +1,14 @@
-import { env } from "cloudflare:workers";
+import { getRequiredEnvValue } from "@/server/lib/runtime-env";
 
 const LOOPS_TRANSACTIONAL_URL = "https://app.loops.so/api/v1/transactional";
 
-function getRequiredEnv(name: string) {
-  const value: unknown = Reflect.get(env, name);
-  const trimmed = typeof value === "string" ? value.trim() : "";
-
-  if (!trimmed) {
-    throw new Error(`${name} is required in hosted mode`);
-  }
-
-  return trimmed;
-}
-
-function getHostedAuthEmailConfig() {
+async function getHostedAuthEmailConfig() {
   return {
-    apiKey: getRequiredEnv("LOOPS_API_KEY"),
-    verificationTemplateId: getRequiredEnv(
+    apiKey: await getRequiredEnvValue("LOOPS_API_KEY"),
+    verificationTemplateId: await getRequiredEnvValue(
       "LOOPS_TRANSACTIONAL_VERIFY_EMAIL_ID",
     ),
-    passwordResetTemplateId: getRequiredEnv(
+    passwordResetTemplateId: await getRequiredEnvValue(
       "LOOPS_TRANSACTIONAL_RESET_PASSWORD_ID",
     ),
   };
@@ -74,7 +63,7 @@ export async function sendHostedVerificationEmail({
   email: string;
   confirmationUrl: string;
 }) {
-  const config = getHostedAuthEmailConfig();
+  const config = await getHostedAuthEmailConfig();
   await sendLoopsTransactionalEmail({
     apiKey: config.apiKey,
     email,
@@ -93,7 +82,7 @@ export async function sendHostedPasswordResetEmail({
   email: string;
   resetUrl: string;
 }) {
-  const config = getHostedAuthEmailConfig();
+  const config = await getHostedAuthEmailConfig();
   await sendLoopsTransactionalEmail({
     apiKey: config.apiKey,
     email,
