@@ -9,13 +9,13 @@ function mapProject(project: {
   id: string;
   name: string;
   domain: string | null;
-  createdAt: string;
+  createdAt: Date;
 }) {
   return {
     id: project.id,
     name: project.name,
     domain: project.domain,
-    createdAt: project.createdAt,
+    createdAt: project.createdAt.toISOString(),
   };
 }
 

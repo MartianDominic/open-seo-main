@@ -37,7 +37,7 @@ async function getAuditLighthouseData(input: {
     id: site.lighthouse.id,
     strategy: site.lighthouse.strategy,
     finalUrl: site.page?.url ?? "",
-    createdAt: site.audit.startedAt,
+    createdAt: site.audit.startedAt.toISOString(),
     payloadJson,
     payload,
   };

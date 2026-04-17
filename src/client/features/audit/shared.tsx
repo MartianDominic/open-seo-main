@@ -20,7 +20,7 @@ export function extractHostname(url: string): string {
   }
 }
 
-export function formatDate(dateStr: string): string {
+export function formatDate(dateStr: string | Date): string {
   return new Date(dateStr).toLocaleDateString("en-US", {
     month: "short",
     day: "numeric",
@@ -28,7 +28,7 @@ export function formatDate(dateStr: string): string {
   });
 }
 
-export function formatStartedAt(dateStr: string): string {
+export function formatStartedAt(dateStr: string | Date): string {
   return new Date(dateStr).toLocaleString("en-US", {
     month: "short",
     day: "numeric",

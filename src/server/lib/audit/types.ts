@@ -3,7 +3,6 @@
  */
 
 import { z } from "zod";
-import { jsonCodec } from "@/shared/json";
 
 export type LighthouseStrategy = "auto" | "all" | "manual" | "none";
 
@@ -17,11 +16,11 @@ const auditConfigSchema = z.object({
   lighthouseStrategy: z.enum(["auto", "all", "manual", "none"]),
 });
 
-const auditConfigCodec = jsonCodec(auditConfigSchema);
-
-export function parseAuditConfig(configRaw: string | null): AuditConfig | null {
-  if (!configRaw) return null;
-  const result = auditConfigCodec.safeParse(configRaw);
+export function parseAuditConfig(configRaw: unknown): AuditConfig | null {
+  if (configRaw == null) return null;
+  // jsonb columns return already-parsed objects; string values are legacy
+  const value = typeof configRaw === "string" ? (JSON.parse(configRaw) as unknown) : configRaw;
+  const result = auditConfigSchema.safeParse(value);
   return result.success ? result.data : null;
 }
 

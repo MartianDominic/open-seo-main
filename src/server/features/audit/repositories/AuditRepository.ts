@@ -12,17 +12,14 @@ import type {
 } from "@/server/lib/audit/types";
 
 const DB_BATCH_SIZE = 100;
-type BatchStatement = Parameters<typeof db.batch>[0][number];
 
 async function executeInBatches<T>(
   items: T[],
-  buildStatement: (item: T) => BatchStatement,
+  buildStatement: (item: T) => Promise<unknown>,
 ) {
   for (let i = 0; i < items.length; i += DB_BATCH_SIZE) {
-    const chunk = items.slice(i, i + DB_BATCH_SIZE).map(buildStatement);
-    const [first, ...rest] = chunk;
-    if (!first) continue;
-    await db.batch([first, ...rest]);
+    const chunk = items.slice(i, i + DB_BATCH_SIZE);
+    await Promise.all(chunk.map(buildStatement));
   }
 }
 
@@ -42,7 +39,7 @@ async function createAudit(data: {
     startedByUserId: data.startedByUserId,
     startUrl: data.startUrl,
     workflowInstanceId: data.workflowInstanceId,
-    config: JSON.stringify(data.config),
+    config: data.config,
     status: "running",
     pagesTotal: data.pagesTotal,
     lighthouseTotal: data.lighthouseTotal,
@@ -85,7 +82,7 @@ async function completeAudit(
     .update(audits)
     .set({
       status: "completed",
-      completedAt: new Date().toISOString(),
+      completedAt: new Date(),
       currentPhase: "completed",
       ...data,
     })
@@ -102,7 +99,7 @@ async function failAudit(auditId: string, workflowInstanceId: string) {
     .update(audits)
     .set({
       status: "failed",
-      completedAt: new Date().toISOString(),
+      completedAt: new Date(),
       currentPhase: "failed",
     })
     .where(
@@ -150,15 +147,15 @@ async function batchWriteResults(
       h4Count: page.h4Count,
       h5Count: page.h5Count,
       h6Count: page.h6Count,
-      headingOrderJson: JSON.stringify(page.headingOrder),
+      headingOrderJson: page.headingOrder,
       wordCount: page.wordCount,
       imagesTotal: page.imagesTotal,
       imagesMissingAlt: page.imagesMissingAlt,
-      imagesJson: JSON.stringify(page.images),
+      imagesJson: page.images,
       internalLinkCount: page.internalLinks.length,
       externalLinkCount: page.externalLinks.length,
       hasStructuredData: page.hasStructuredData,
-      hreflangTagsJson: JSON.stringify(page.hreflangTags),
+      hreflangTagsJson: page.hreflangTags,
       isIndexable: page.isIndexable,
       responseTimeMs: page.responseTimeMs,
     }),

@@ -84,7 +84,8 @@ export function useLaunchController({
           lighthouseStrategy: value.runLighthouse ? "auto" : "none",
         });
         toast.success("Audit started!");
-        onAuditStarted(result.auditId);
+        // Phase 2: startAudit always throws; this line is unreachable until Phase 3
+        onAuditStarted((result as unknown as { auditId: string }).auditId);
       } catch (error) {
         formApi.setErrorMap({
           onSubmit: createFormValidationErrors({

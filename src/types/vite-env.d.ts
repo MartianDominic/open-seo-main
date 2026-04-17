@@ -7,7 +7,9 @@ interface ViteTypeOptions {
 
 interface ImportMetaEnv {
   readonly VITE_SHOW_DEVTOOLS?: string;
-  // more env variables...
+  readonly AUTH_MODE?: "cloudflare_access" | "local_noauth" | "hosted";
+  readonly POSTHOG_PUBLIC_KEY?: string;
+  readonly POSTHOG_HOST?: string;
 }
 
 interface ImportMeta {

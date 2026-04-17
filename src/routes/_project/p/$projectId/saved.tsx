@@ -87,7 +87,7 @@ function SavedKeywordsPage() {
       kw.competition?.toFixed(2) ?? "",
       kw.keywordDifficulty ?? "",
       kw.intent ?? "",
-      kw.fetchedAt ?? "",
+      kw.fetchedAt instanceof Date ? kw.fetchedAt.toISOString() : (kw.fetchedAt ?? ""),
     ]);
     const csv = buildCsv(headers, csvRows);
     downloadCsv("saved-keywords.csv", csv);
@@ -128,7 +128,7 @@ function SavedKeywordsContent({
     competition: number | null;
     keywordDifficulty: number | null;
     intent: string | null;
-    fetchedAt: string | null;
+    fetchedAt: Date | string | null;
   }>;
   onExportCsv: () => void;
   onRemoveKeyword: (savedKeywordId: string) => void;
@@ -219,7 +219,7 @@ function SavedKeywordsTable({
     competition: number | null;
     keywordDifficulty: number | null;
     intent: string | null;
-    fetchedAt: string | null;
+    fetchedAt: Date | string | null;
   }>;
   removingId: string | null;
   onRemoveKeyword: (savedKeywordId: string) => void;

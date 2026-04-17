@@ -14,7 +14,8 @@ async function upsertKeywordMetric(params: {
   intent: string | null;
   monthlySearchesJson: string;
 }) {
-  const fetchedAt = new Date().toISOString();
+  const fetchedAt = new Date();
+  const monthlySearches = JSON.parse(params.monthlySearchesJson) as unknown;
 
   await db
     .insert(keywordMetrics)
@@ -28,7 +29,7 @@ async function upsertKeywordMetric(params: {
       competition: params.competition,
       keywordDifficulty: params.keywordDifficulty,
       intent: params.intent,
-      monthlySearches: params.monthlySearchesJson,
+      monthlySearches,
       fetchedAt,
     })
     .onConflictDoUpdate({
@@ -44,7 +45,7 @@ async function upsertKeywordMetric(params: {
         competition: params.competition,
         keywordDifficulty: params.keywordDifficulty,
         intent: params.intent,
-        monthlySearches: params.monthlySearchesJson,
+        monthlySearches,
         fetchedAt,
       },
     });
@@ -66,20 +67,20 @@ async function saveKeywordsToProject(params: {
 }) {
   if (params.keywords.length === 0) return;
 
-  const [first, ...rest] = params.keywords.map((keyword) =>
-    db
-      .insert(savedKeywords)
-      .values({
-        id: crypto.randomUUID(),
-        projectId: params.projectId,
-        keyword,
-        locationCode: params.locationCode,
-        languageCode: params.languageCode,
-      })
-      .onConflictDoNothing(),
+  await Promise.all(
+    params.keywords.map((keyword) =>
+      db
+        .insert(savedKeywords)
+        .values({
+          id: crypto.randomUUID(),
+          projectId: params.projectId,
+          keyword,
+          locationCode: params.locationCode,
+          languageCode: params.languageCode,
+        })
+        .onConflictDoNothing(),
+    ),
   );
-
-  await db.batch([first, ...rest]);
 }
 
 async function listSavedKeywordsByProject(projectId: string) {

@@ -27,14 +27,14 @@ export type SavedKeywordRow = {
   keyword: string;
   locationCode: number;
   languageCode: string;
-  createdAt: string;
+  createdAt: Date;
   searchVolume: number | null;
   cpc: number | null;
   competition: number | null;
   keywordDifficulty: number | null;
   intent: string | null;
   monthlySearches: MonthlySearch[];
-  fetchedAt: string | null;
+  fetchedAt: Date | null;
 };
 
 export type SerpResultItem = {

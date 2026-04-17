@@ -1,6 +1,5 @@
 import { AppError } from "@/server/lib/errors";
 import { KeywordResearchRepository } from "@/server/features/keywords/repositories/KeywordResearchRepository";
-import { jsonCodec } from "@/shared/json";
 import type {
   GetSavedKeywordsInput,
   RemoveSavedKeywordInput,
@@ -16,11 +15,13 @@ const monthlySearchSchema = z.object({
   searchVolume: z.number().int().nonnegative(),
 });
 
-const monthlySearchesCodec = jsonCodec(z.array(monthlySearchSchema));
+const monthlySearchesSchema = z.array(monthlySearchSchema);
 
-function parseMonthlySearches(payload: string | null): MonthlySearch[] {
-  if (!payload) return [];
-  const result = monthlySearchesCodec.safeParse(payload);
+function parseMonthlySearches(payload: unknown): MonthlySearch[] {
+  if (payload == null) return [];
+  // jsonb columns return already-parsed objects; string values are legacy
+  const value = typeof payload === "string" ? (JSON.parse(payload) as unknown) : payload;
+  const result = monthlySearchesSchema.safeParse(value);
   return result.success ? result.data : [];
 }
 
