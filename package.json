@@ -12,15 +12,14 @@
     "lint": "oxlint . --type-aware",
     "lint:fix": "oxlint . --type-aware --fix",
     "preview": "npm run build && vite preview --port 3001",
-    "deploy": "npm run db:migrate:prod && npm run build && wrangler deploy",
-    "cf-typegen": "wrangler types",
+    "deploy": "echo 'deploy handled by CI/CD in Phase 5'",
     "types:check": "tsc --noEmit",
     "format:check": "prettier --check .",
     "format:write": "prettier . --write",
-    "auth:generate": "pnpm dlx auth@latest generate --config ./cli-auth.ts --adapter drizzle --dialect sqlite --output ./src/db/better-auth-schema.ts",
+    "auth:generate": "pnpm dlx auth@latest generate --config ./cli-auth.ts --adapter drizzle --dialect pg --output ./src/db/better-auth-schema.ts",
     "db:generate": "drizzle-kit generate",
-    "db:migrate:local": "wrangler d1 migrations apply DB --local",
-    "db:migrate:prod": "wrangler d1 migrations apply DB --remote",
+    "db:migrate:local": "drizzle-kit migrate",
+    "db:migrate:prod": "drizzle-kit migrate",
     "knip": "knip",
     "release:notes": "node scripts/release-notes.mjs",
     "test": "vitest run",
@@ -28,22 +27,6 @@
     "test:ci": "vitest run --reporter=dot",
     "billing:backlinks": "tsx scripts/backlinks-cost-profile.ts",
     "ci:check": "prettier --check . && knip && tsc --noEmit && oxlint . --type-aware"
-  },
-  "cloudflare": {
-    "bindings": {
-      "AUTH_MODE": {
-        "description": "Set to `cloudflare_access` for secured deployments behind Cloudflare Access, or `local_noauth` for trusted local self-host mode only."
-      },
-      "TEAM_DOMAIN": {
-        "description": "Cloudflare Access team domain (for example `https://your-team.cloudflareaccess.com`) used to validate `cf-access-jwt-assertion` JWTs."
-      },
-      "POLICY_AUD": {
-        "description": "Cloudflare Access Application Audience (AUD) tag for this Worker route/domain."
-      },
-      "DATAFORSEO_API_KEY": {
-        "description": "Base64-encoded `login:password` for DataForSEO API access."
-      }
-    }
   },
   "dependencies": {
     "@every-app/sdk": "^0.1.14",
@@ -66,19 +49,22 @@
     "@tanstack/react-router-devtools": "^1.166.11",
     "@tanstack/react-start": "^1.167.16",
     "@tanstack/react-table": "^8.21.3",
+    "@tanstack/nitro-v2-vite-plugin": "1.154.9",
     "autumn-js": "^1.1.7",
     "better-auth": "^1.5.5",
+    "bullmq": "5.74.1",
     "cheerio": "^1.2.0",
     "class-variance-authority": "^0.7.1",
-    "cloudflare": "^5.2.0",
     "clsx": "^2.1.1",
     "daisyui": "^5.5.5",
     "dataforseo-client": "^2.0.19",
     "drizzle-orm": "^0.44.4",
     "fast-xml-parser": "^5.4.1",
+    "ioredis": "5.10.1",
     "jose": "^6.0.12",
     "lucide-react": "^0.542.0",
     "papaparse": "^5.5.3",
+    "pg": "8.20.0",
     "posthog-js": "^1.363.5",
     "posthog-node": "^5.28.5",
     "react": "^19.0.0",
@@ -94,14 +80,12 @@
     "zod": "^4.1.12"
   },
   "devDependencies": {
-    "@cloudflare/vite-plugin": "^1.13.18",
-    "@cloudflare/workers-types": "^4.20251014.0",
-    "@libsql/client": "^0.15.15",
     "@tailwindcss/vite": "^4.1.11",
     "@tanstack/devtools-vite": "^0.6.0",
     "@tanstack/react-devtools": "^0.10.1",
     "@types/node": "^22.18.13",
     "@types/papaparse": "^5.5.2",
+    "@types/pg": "^8.11.0",
     "@types/react": "^19.0.8",
     "@types/react-dom": "^19.0.3",
     "@vitejs/plugin-react": "^4.6.0",
@@ -115,7 +99,6 @@
     "typescript": "^5.9.3",
     "vite": "^7.1.2",
     "vite-tsconfig-paths": "^5.1.4",
-    "vitest": "^3.2.4",
-    "wrangler": "^4.45.3"
+    "vitest": "^3.2.4"
   }
 }
