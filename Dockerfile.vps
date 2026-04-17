@@ -30,6 +30,14 @@ RUN pnpm exec esbuild src/worker-entry.ts \
         --outfile=.output/worker-entry.mjs \
         --packages=external
 
+# Compile standalone migration entry to .output/migrate-entry.mjs (CI-02).
+# Must happen before dev-dep pruning because esbuild is a transitive dev dep.
+# --packages=external keeps drizzle-orm + pg unbundled so the pruned prod node_modules resolves them at runtime.
+RUN pnpm exec esbuild src/migrate-entry.ts \
+        --bundle --platform=node --format=esm --target=node22 \
+        --outfile=.output/migrate-entry.mjs \
+        --packages=external
+
 # Prune dev deps for runtime copy
 RUN pnpm prune --prod
 
