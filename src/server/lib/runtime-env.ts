@@ -73,9 +73,10 @@ export function validateEnv(required: readonly string[]): void {
  */
 export const REQUIRED_ENV_HOSTED = [
   "DATABASE_URL",
+  "REDIS_URL",
   "BETTER_AUTH_SECRET",
   "BETTER_AUTH_URL",
 ] as const;
 
 /** Always-required vars regardless of auth mode. */
-export const REQUIRED_ENV_CORE = ["DATABASE_URL"] as const;
+export const REQUIRED_ENV_CORE = ["DATABASE_URL", "REDIS_URL"] as const;
