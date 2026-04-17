@@ -1,39 +1,37 @@
 import {
-  sqliteTable,
+  pgTable,
   text,
   integer,
   real,
+  boolean,
+  timestamp,
+  jsonb,
   uniqueIndex,
   index,
-} from "drizzle-orm/sqlite-core";
-import { sql } from "drizzle-orm";
+} from "drizzle-orm/pg-core";
 import { organization } from "./better-auth-schema";
 
 // This stores users for Cloudflare Access and local_noauth mode
 // since they don't map to better-auth's user schema
-export const delegatedUsers = sqliteTable("delegated_users", {
+export const delegatedUsers = pgTable("delegated_users", {
   id: text("id").primaryKey(),
   email: text("email").notNull().unique(),
-  createdAt: text("created_at")
-    .notNull()
-    .default(sql`(current_timestamp)`),
+  createdAt: timestamp("created_at", { withTimezone: true, mode: "date" }).notNull().defaultNow(),
 });
 
 // Projects for keyword research
-export const projects = sqliteTable("projects", {
+export const projects = pgTable("projects", {
   id: text("id").primaryKey(),
   organizationId: text("organization_id")
     .notNull()
     .references(() => organization.id, { onDelete: "cascade" }),
   name: text("name").notNull(),
   domain: text("domain"),
-  createdAt: text("created_at")
-    .notNull()
-    .default(sql`(current_timestamp)`),
+  createdAt: timestamp("created_at", { withTimezone: true, mode: "date" }).notNull().defaultNow(),
 });
 
 // User-saved keywords within a project. This is the canonical saved list.
-export const savedKeywords = sqliteTable(
+export const savedKeywords = pgTable(
   "saved_keywords",
   {
     id: text("id").primaryKey(),
@@ -43,9 +41,7 @@ export const savedKeywords = sqliteTable(
     keyword: text("keyword").notNull(),
     locationCode: integer("location_code").notNull().default(2840),
     languageCode: text("language_code").notNull().default("en"),
-    createdAt: text("created_at")
-      .notNull()
-      .default(sql`(current_timestamp)`),
+    createdAt: timestamp("created_at", { withTimezone: true, mode: "date" }).notNull().defaultNow(),
   },
   (table) => [
     uniqueIndex("saved_keywords_unique_project_keyword_location_language").on(
@@ -63,10 +59,10 @@ export const savedKeywords = sqliteTable(
 
 // Latest cached metrics for a keyword within a project.
 // This is joined onto savedKeywords when rendering the saved keyword list.
-export const keywordMetrics = sqliteTable(
+export const keywordMetrics = pgTable(
   "keyword_metrics",
   {
-    id: integer("id").primaryKey({ autoIncrement: true }),
+    id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
     projectId: text("project_id")
       .notNull()
       .references(() => projects.id, { onDelete: "cascade" }),
@@ -78,10 +74,8 @@ export const keywordMetrics = sqliteTable(
     competition: real("competition"),
     keywordDifficulty: integer("keyword_difficulty"),
     intent: text("intent"),
-    monthlySearches: text("monthly_searches"),
-    fetchedAt: text("fetched_at")
-      .notNull()
-      .default(sql`(current_timestamp)`),
+    monthlySearches: jsonb("monthly_searches"),
+    fetchedAt: timestamp("fetched_at", { withTimezone: true, mode: "date" }).notNull().defaultNow(),
   },
   (table) => [
     uniqueIndex("keyword_metrics_unique_project_keyword_location_language").on(
@@ -105,7 +99,7 @@ export const keywordMetrics = sqliteTable(
 // ============================================================================
 
 // One row per audit run
-export const audits = sqliteTable(
+export const audits = pgTable(
   "audits",
   {
     id: text("id").primaryKey(),
@@ -121,7 +115,7 @@ export const audits = sqliteTable(
       .default("running"),
     workflowInstanceId: text("workflow_instance_id"),
     // JSON config: { maxPages, lighthouseStrategy }
-    config: text("config").notNull().default("{}"),
+    config: jsonb("config").notNull().default({}),
     // Progress & summary
     pagesCrawled: integer("pages_crawled").notNull().default(0),
     pagesTotal: integer("pages_total").notNull().default(0),
@@ -129,10 +123,8 @@ export const audits = sqliteTable(
     lighthouseCompleted: integer("lighthouse_completed").notNull().default(0),
     lighthouseFailed: integer("lighthouse_failed").notNull().default(0),
     currentPhase: text("current_phase").default("discovery"),
-    startedAt: text("started_at")
-      .notNull()
-      .default(sql`(current_timestamp)`),
-    completedAt: text("completed_at"),
+    startedAt: timestamp("started_at", { withTimezone: true, mode: "date" }).notNull().defaultNow(),
+    completedAt: timestamp("completed_at", { withTimezone: true, mode: "date" }),
   },
   (table) => [
     index("audits_project_id_idx").on(table.projectId),
@@ -141,7 +133,7 @@ export const audits = sqliteTable(
 );
 
 // One row per crawled page
-export const auditPages = sqliteTable(
+export const auditPages = pgTable(
   "audit_pages",
   {
     id: text("id").primaryKey(),
@@ -167,26 +159,22 @@ export const auditPages = sqliteTable(
     h4Count: integer("h4_count").notNull().default(0),
     h5Count: integer("h5_count").notNull().default(0),
     h6Count: integer("h6_count").notNull().default(0),
-    headingOrderJson: text("heading_order_json"),
+    headingOrderJson: jsonb("heading_order_json"),
     // Content
     wordCount: integer("word_count").notNull().default(0),
     // Images
     imagesTotal: integer("images_total").notNull().default(0),
     imagesMissingAlt: integer("images_missing_alt").notNull().default(0),
-    imagesJson: text("images_json"),
+    imagesJson: jsonb("images_json"),
     // Links
     internalLinkCount: integer("internal_link_count").notNull().default(0),
     externalLinkCount: integer("external_link_count").notNull().default(0),
     // Structured data
-    hasStructuredData: integer("has_structured_data", { mode: "boolean" })
-      .notNull()
-      .default(false),
+    hasStructuredData: boolean("has_structured_data").notNull().default(false),
     // Hreflang
-    hreflangTagsJson: text("hreflang_tags_json"),
+    hreflangTagsJson: jsonb("hreflang_tags_json"),
     // Indexability
-    isIndexable: integer("is_indexable", { mode: "boolean" })
-      .notNull()
-      .default(true),
+    isIndexable: boolean("is_indexable").notNull().default(true),
     // Performance
     responseTimeMs: integer("response_time_ms"),
   },
@@ -194,7 +182,7 @@ export const auditPages = sqliteTable(
 );
 
 // One row per Lighthouse test (mobile + desktop per page).
-export const auditLighthouseResults = sqliteTable(
+export const auditLighthouseResults = pgTable(
   "audit_lighthouse_results",
   {
     id: text("id").primaryKey(),
