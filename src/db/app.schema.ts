@@ -9,6 +9,7 @@ import {
   uniqueIndex,
   index,
 } from "drizzle-orm/pg-core";
+import { desc } from "drizzle-orm";
 import { organization } from "./better-auth-schema";
 
 // This stores users for Cloudflare Access and local_noauth mode
@@ -114,6 +115,10 @@ export const audits = pgTable(
       .notNull()
       .default("running"),
     workflowInstanceId: text("workflow_instance_id"),
+    // AUTH-04: client ownership for per-client scoping. Nullable because
+    // audits created before Phase 6 have no client; queries MUST treat
+    // NULL as "unscoped" not "all clients".
+    clientId: text("client_id"),
     // JSON config: { maxPages, lighthouseStrategy }
     config: jsonb("config").notNull().default({}),
     // Progress & summary
@@ -129,6 +134,10 @@ export const audits = pgTable(
   (table) => [
     index("audits_project_id_idx").on(table.projectId),
     index("audits_started_by_user_id_idx").on(table.startedByUserId),
+    index("audits_client_id_started_at_idx").on(
+      table.clientId,
+      desc(table.startedAt),
+    ),
   ],
 );
 
