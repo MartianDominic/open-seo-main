@@ -22,6 +22,7 @@ async function startAudit(input: {
   startUrl: string;
   maxPages?: number;
   lighthouseStrategy?: LighthouseStrategy;
+  clientId?: string | null;
 }) {
   const maxPages = clampAuditMaxPages(input.maxPages);
   const lighthouseStrategy = input.lighthouseStrategy ?? "auto";
@@ -51,6 +52,7 @@ async function startAudit(input: {
     config,
     pagesTotal: reservation.pagesTotal,
     lighthouseTotal: reservation.lighthouseTotal,
+    clientId: input.clientId ?? null,
   });
 
   const jobData: AuditJobData = {
@@ -155,8 +157,11 @@ async function getResults(auditId: string, projectId: string) {
   };
 }
 
-async function getHistory(projectId: string) {
-  const auditList = await AuditRepository.getAuditsByProject(projectId);
+async function getHistory(
+  projectId: string,
+  opts?: { clientId?: string | null },
+) {
+  const auditList = await AuditRepository.getAuditsByProject(projectId, opts);
 
   return auditList.map((audit) => {
     const parsedConfig = parseAuditConfig(audit.config);

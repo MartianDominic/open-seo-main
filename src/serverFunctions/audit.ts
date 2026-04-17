@@ -2,6 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { AuditService } from "@/server/features/audit/services/AuditService";
 import { captureServerEvent } from "@/server/lib/posthog";
 import { requireProjectContext } from "@/serverFunctions/middleware";
+import { AppError } from "@/server/lib/errors";
 import {
   deleteAuditSchema,
   getAuditHistorySchema,
@@ -26,6 +27,7 @@ export const startAudit = createServerFn({ method: "POST" })
       startUrl: data.startUrl,
       maxPages: data.maxPages,
       lighthouseStrategy: data.lighthouseStrategy,
+      clientId: context.clientId,
     });
 
     void captureServerEvent({
@@ -61,8 +63,15 @@ export const getAuditResults = createServerFn({ method: "POST" })
 export const getAuditHistory = createServerFn({ method: "POST" })
   .middleware(requireProjectContext)
   .inputValidator((data: unknown) => getAuditHistorySchema.parse(data))
-  .handler(async ({ context }) => {
-    return AuditService.getHistory(context.projectId);
+  .handler(async ({ data, context }) => {
+    // AUTH-03 mismatch guard: a caller cannot ask for one client's data
+    // while presenting a different client_id in the header.
+    if (data.clientId && context.clientId && data.clientId !== context.clientId) {
+      throw new AppError("FORBIDDEN", "clientId mismatch between query and X-Client-ID header");
+    }
+    // Prefer the query-supplied clientId, fall back to the header-resolved one.
+    const effectiveClientId = data.clientId ?? context.clientId ?? null;
+    return AuditService.getHistory(context.projectId, { clientId: effectiveClientId });
   });
 
 export const getCrawlProgress = createServerFn({ method: "POST" })

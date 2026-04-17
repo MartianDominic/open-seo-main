@@ -32,6 +32,7 @@ async function createAudit(data: {
   config: AuditConfig;
   pagesTotal: number;
   lighthouseTotal: number;
+  clientId?: string | null;
 }) {
   await db.insert(audits).values({
     id: data.id,
@@ -44,6 +45,7 @@ async function createAudit(data: {
     pagesTotal: data.pagesTotal,
     lighthouseTotal: data.lighthouseTotal,
     currentPhase: "discovery",
+    clientId: data.clientId ?? null,
   });
 }
 
@@ -192,11 +194,18 @@ async function getAuditForProject(auditId: string, projectId: string) {
   });
 }
 
-async function getAuditsByProject(projectId: string) {
+async function getAuditsByProject(
+  projectId: string,
+  opts?: { clientId?: string | null },
+) {
+  const whereClause = opts?.clientId
+    ? and(eq(audits.projectId, projectId), eq(audits.clientId, opts.clientId))
+    : eq(audits.projectId, projectId);
+
   const rows = await db
     .select({ audit: audits })
     .from(audits)
-    .where(eq(audits.projectId, projectId))
+    .where(whereClause)
     .orderBy(desc(audits.startedAt));
 
   return rows.map(({ audit }) => audit);

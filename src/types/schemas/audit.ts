@@ -1,6 +1,11 @@
 import { z } from "zod";
 
-// ─── Server function input schemas ──────────────────────────────────────────
+// --- Server function input schemas -------------------------------------------
+
+const clientIdField = z
+  .string()
+  .uuid("clientId must be a UUID")
+  .optional();
 
 export const startAuditSchema = z.object({
   projectId: z.string().min(1),
@@ -10,6 +15,7 @@ export const startAuditSchema = z.object({
     .enum(["auto", "all", "manual", "none"])
     .optional()
     .default("auto"),
+  clientId: clientIdField,
 });
 
 export const getAuditStatusSchema = z.object({
@@ -24,6 +30,7 @@ export const getAuditResultsSchema = z.object({
 
 export const getAuditHistorySchema = z.object({
   projectId: z.string().min(1),
+  clientId: clientIdField,
 });
 
 export const deleteAuditSchema = z.object({
@@ -36,7 +43,7 @@ export const getCrawlProgressSchema = z.object({
   auditId: z.string().min(1),
 });
 
-// ─── URL search params schema for /p/$projectId/audit ────────────────────────
+// --- URL search params schema for /p/$projectId/audit ------------------------
 
 const auditTabs = ["pages", "performance"] as const;
 
