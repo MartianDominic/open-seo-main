@@ -36,10 +36,10 @@ export const requireAuthenticatedContext = [
     const authenticatedContext = getAuthenticatedContext(context);
     await requireManagedServiceAccess(authenticatedContext);
 
-    // AUTH-03: resolve X-Client-ID once per request. Throws FORBIDDEN if
-    // the header is present but invalid/unknown.
-    const { headers } = getRequest();
-    const clientId = await resolveClientId(headers);
+    // AUTH-03 / SHELL-04: resolve client_id from header or URL query param.
+    // Throws FORBIDDEN if the value is present but invalid/unknown.
+    const { headers, url } = getRequest();
+    const clientId = await resolveClientId(headers, url);
 
     return next({
       context: { ...authenticatedContext, clientId },
@@ -60,10 +60,10 @@ export const requireProjectContext = [
       );
     }
 
-    // AUTH-03: resolve X-Client-ID once per request. Throws FORBIDDEN if
-    // the header is present but invalid/unknown.
-    const { headers } = getRequest();
-    const clientId = await resolveClientId(headers);
+    // AUTH-03 / SHELL-04: resolve client_id from header or URL query param.
+    // Throws FORBIDDEN if the value is present but invalid/unknown.
+    const { headers, url } = getRequest();
+    const clientId = await resolveClientId(headers, url);
 
     return next({
       context: {
