@@ -3,7 +3,7 @@ import { defineConfig, loadEnv } from "vite";
 import tsConfigPaths from "vite-tsconfig-paths";
 import viteReact from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
-import { cloudflare } from "@cloudflare/vite-plugin";
+import { nitroV2Plugin } from "@tanstack/nitro-v2-vite-plugin";
 import { devtools } from "@tanstack/devtools-vite";
 
 export default defineConfig(({ mode }) => {
@@ -30,7 +30,7 @@ export default defineConfig(({ mode }) => {
             },
           })
         : null,
-      cloudflare({ viteEnvironment: { name: "ssr" } }),
+      nitroV2Plugin({ preset: "node-server" }),
       tsConfigPaths(),
       tanstackStart(),
       viteReact(),
