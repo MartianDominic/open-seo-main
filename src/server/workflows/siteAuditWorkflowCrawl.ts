@@ -1,4 +1,4 @@
-import type { WorkflowStep } from "cloudflare:workers";
+import type { WorkflowStep } from "@/server/workflows/workflow-types";
 import type { RobotsResult } from "@/server/lib/audit/discovery";
 import type { StepPageResult } from "@/server/lib/audit/types";
 import { isSameOrigin, normalizeUrl } from "@/server/lib/audit/url-utils";

@@ -1,4 +1,4 @@
-import type { WorkflowStep } from "cloudflare:workers";
+import type { WorkflowStep } from "@/server/workflows/workflow-types";
 import type { BillingCustomerContext } from "@/server/billing/subscription";
 import { discoverUrls, fetchRobotsTxt } from "@/server/lib/audit/discovery";
 import {

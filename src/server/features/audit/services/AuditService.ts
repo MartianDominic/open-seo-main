@@ -1,4 +1,3 @@
-import { env } from "cloudflare:workers";
 import type { BillingCustomerContext } from "@/server/billing/subscription";
 import { AuditRepository } from "@/server/features/audit/repositories/AuditRepository";
 import {
@@ -53,30 +52,12 @@ async function startAudit(input: {
     lighthouseTotal: reservation.lighthouseTotal,
   });
 
-  try {
-    await env.SITE_AUDIT_WORKFLOW.create({
-      id: auditId,
-      params: {
-        auditId,
-        billingCustomer: input.billingCustomer,
-        projectId: input.projectId,
-        startUrl,
-        config,
-      },
-    });
-  } catch (error) {
-    try {
-      const instance = await env.SITE_AUDIT_WORKFLOW.get(auditId);
-      await instance.terminate();
-    } catch {
-      // The workflow may never have been created, or may already be gone.
-    }
-
-    await AuditRepository.deleteAuditForProject(auditId, input.projectId);
-    throw error;
-  }
-
-  return { auditId };
+  // Phase 2: BullMQ queue not yet wired. Undo the DB insert and surface the error.
+  await AuditRepository.deleteAuditForProject(auditId, input.projectId);
+  throw new AppError(
+    "INTERNAL_ERROR",
+    "Audits are disabled until Phase 3 wires the BullMQ queue.",
+  );
 }
 
 async function getStatus(auditId: string, projectId: string) {
@@ -161,22 +142,12 @@ async function remove(auditId: string, projectId: string) {
   }
 
   if (audit.status === "running") {
-    if (!audit.workflowInstanceId) {
-      throw new AppError(
-        "CONFLICT",
-        "Cannot delete a running audit without workflow context.",
-      );
-    }
-
-    try {
-      const instance = await env.SITE_AUDIT_WORKFLOW.get(
-        audit.workflowInstanceId,
-      );
-      await instance.terminate();
-    } catch (error) {
-      console.error(`Failed to terminate audit workflow ${audit.id}:`, error);
-      throw new AppError("CONFLICT", "Unable to stop the running audit.");
-    }
+    // Phase 2 cannot terminate running audits because the BullMQ worker
+    // is not yet wired. Mark the audit as stale rather than terminating it.
+    throw new AppError(
+      "CONFLICT",
+      "Running audits cannot be deleted until Phase 3 enables the BullMQ queue.",
+    );
   }
 
   await AuditRepository.deleteAuditForProject(auditId, projectId);

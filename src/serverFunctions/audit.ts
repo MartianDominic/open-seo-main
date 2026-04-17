@@ -1,5 +1,4 @@
 import { createServerFn } from "@tanstack/react-start";
-import { waitUntil } from "cloudflare:workers";
 import { AuditService } from "@/server/features/audit/services/AuditService";
 import { captureServerEvent } from "@/server/lib/posthog";
 import { requireProjectContext } from "@/serverFunctions/middleware";
@@ -29,18 +28,18 @@ export const startAudit = createServerFn({ method: "POST" })
       lighthouseStrategy: data.lighthouseStrategy,
     });
 
-    waitUntil(
-      captureServerEvent({
-        distinctId: context.userId,
-        event: "site_audit:start",
-        organizationId: context.organizationId,
-        properties: {
-          project_id: context.projectId,
-          max_pages: data.maxPages ?? 50,
-          run_lighthouse: data.lighthouseStrategy !== "none",
-        },
-      }),
-    );
+    void captureServerEvent({
+      distinctId: context.userId,
+      event: "site_audit:start",
+      organizationId: context.organizationId,
+      properties: {
+        project_id: context.projectId,
+        max_pages: data.maxPages ?? 50,
+        run_lighthouse: data.lighthouseStrategy !== "none",
+      },
+    }).catch((err) => {
+      console.error("posthog captureServerEvent failed:", err);
+    });
 
     return result;
   });
