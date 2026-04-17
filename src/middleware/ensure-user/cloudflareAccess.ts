@@ -1,4 +1,3 @@
-import { env } from "cloudflare:workers";
 import { createRemoteJWKSet, jwtVerify } from "jose";
 import { AppError } from "@/server/lib/errors";
 import { resolveDelegatedContext } from "./delegated";
@@ -46,10 +45,10 @@ function getValidatedTeamDomain(teamDomain: string) {
 export async function resolveCloudflareAccessContext(
   headers: Headers,
 ): Promise<EnsuredUserContext> {
-  const teamDomain = env.TEAM_DOMAIN
-    ? getValidatedTeamDomain(env.TEAM_DOMAIN)
+  const teamDomain = process.env.TEAM_DOMAIN
+    ? getValidatedTeamDomain(process.env.TEAM_DOMAIN)
     : null;
-  const policyAud = env.POLICY_AUD?.trim() || null;
+  const policyAud = process.env.POLICY_AUD?.trim() || null;
 
   if (!teamDomain || !policyAud) {
     throw new AppError(

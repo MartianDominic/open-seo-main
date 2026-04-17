@@ -10,7 +10,6 @@ import type {
 } from "@/middleware/ensure-user/types";
 import { AppError } from "@/server/lib/errors";
 import { ProjectRepository } from "@/server/features/projects/repositories/ProjectRepository";
-import { env } from "cloudflare:workers";
 
 function extractProjectId(data: unknown) {
   if (!data || typeof data !== "object" || !("projectId" in data)) {
@@ -26,7 +25,7 @@ function extractProjectId(data: unknown) {
 export const ensureUserMiddleware = createMiddleware({
   type: "function",
 }).server(async ({ next, data }) => {
-  const authMode = getAuthMode(env.AUTH_MODE);
+  const authMode = getAuthMode(process.env.AUTH_MODE);
   const headers = getRequest().headers;
   let context: EnsuredUserContext;
 

@@ -19,10 +19,6 @@ const { checkMock, trackMock, getOrCreateMock, isHostedServerAuthModeMock } =
     isHostedServerAuthModeMock: vi.fn(),
   }));
 
-vi.mock("cloudflare:workers", () => ({
-  waitUntil: vi.fn(),
-}));
-
 vi.mock("@/server/billing/autumn", () => ({
   autumn: {
     check: checkMock,

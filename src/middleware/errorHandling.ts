@@ -1,6 +1,5 @@
 import { createMiddleware } from "@tanstack/react-start";
 import { getRequest } from "@tanstack/react-start/server";
-import { waitUntil } from "cloudflare:workers";
 import { shouldCaptureAppErrorCode } from "@/shared/error-codes";
 import { asAppError, toClientError } from "@/server/lib/errors";
 import { captureServerError } from "@/server/lib/posthog";
@@ -24,13 +23,13 @@ export const errorHandlingMiddleware = createMiddleware({
       const url = new URL(request.url);
 
       console.error("server.function error:", error);
-      waitUntil(
-        captureServerError(error, {
-          errorCode: appError?.code ?? "INTERNAL_ERROR",
-          method: request.method,
-          path: url.pathname,
-        }),
-      );
+      void captureServerError(error, {
+        errorCode: appError?.code ?? "INTERNAL_ERROR",
+        method: request.method,
+        path: url.pathname,
+      }).catch((err) => {
+        console.error("posthog captureServerError failed:", err);
+      });
     }
 
     throw toClientError(error);
