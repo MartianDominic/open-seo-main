@@ -22,6 +22,22 @@ function extractProjectId(data: unknown) {
     : null;
 }
 
+/**
+ * Authentication middleware — honors AUTH-01 and AUTH-02.
+ *
+ * - AUTH-01: when `resolveHostedContext(headers)` cannot find a valid
+ *   better-auth session it throws `AppError("UNAUTHENTICATED")`, which
+ *   surfaces to the client as a 401. Do NOT swallow this — it is the
+ *   single source of truth for "unauthenticated requests are rejected".
+ * - AUTH-02: on success, `EnsuredUserContext` exposes `userId`,
+ *   `userEmail`, and `organizationId` to every downstream server fn.
+ *   Phase 6 (AUTH-03) layers `clientId` on top in serverFunctions/middleware.
+ *
+ * Auth modes:
+ *   - `AUTH_MODE=hosted` (prod default, set in .env.vps.example) uses better-auth.
+ *   - `AUTH_MODE=local_noauth` delegates to a fixture user (dev only).
+ *   - Cloudflare Access path retained for legacy deploys.
+ */
 export const ensureUserMiddleware = createMiddleware({
   type: "function",
 }).server(async ({ next, data }) => {

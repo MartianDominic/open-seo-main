@@ -1,10 +1,12 @@
 import { createMiddleware } from "@tanstack/react-start";
+import { getRequest } from "@tanstack/react-start/server";
 import { z } from "zod";
 import { AppError } from "@/server/lib/errors";
 import { errorHandlingMiddleware } from "@/middleware/errorHandling";
 import type { EnsuredUserContext } from "@/middleware/ensure-user/types";
 import { ensureUserMiddleware } from "@/middleware/ensureUser";
 import { requireManagedServiceAccess } from "@/server/billing/subscription";
+import { resolveClientId } from "@/server/lib/client-context";
 
 const ensuredUserContextSchema: z.ZodType<EnsuredUserContext> = z.object({
   userId: z.string(),
@@ -34,8 +36,13 @@ export const requireAuthenticatedContext = [
     const authenticatedContext = getAuthenticatedContext(context);
     await requireManagedServiceAccess(authenticatedContext);
 
+    // AUTH-03: resolve X-Client-ID once per request. Throws FORBIDDEN if
+    // the header is present but invalid/unknown.
+    const { headers } = getRequest();
+    const clientId = await resolveClientId(headers);
+
     return next({
-      context: authenticatedContext,
+      context: { ...authenticatedContext, clientId },
     });
   }),
 ] as const;
@@ -53,11 +60,17 @@ export const requireProjectContext = [
       );
     }
 
+    // AUTH-03: resolve X-Client-ID once per request. Throws FORBIDDEN if
+    // the header is present but invalid/unknown.
+    const { headers } = getRequest();
+    const clientId = await resolveClientId(headers);
+
     return next({
       context: {
         ...authenticatedContext,
         project: authenticatedContext.project,
         projectId: authenticatedContext.project.id,
+        clientId,
       },
     });
   }),
