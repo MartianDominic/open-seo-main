@@ -29,6 +29,15 @@ export async function getOptionalEnvValue(
 }
 
 /**
+ * Check if we're in hosted auth mode.
+ * With Clerk migration, this always returns true since all auth is now "hosted" via Clerk.
+ * @deprecated Will be removed in Phase 11-04 when better-auth is fully removed.
+ */
+export async function isHostedServerAuthMode(): Promise<boolean> {
+  return true;
+}
+
+/**
  * Legacy shim — previously returned a Cloudflare Worker binding. On Node.js
  * there are no runtime bindings; every value comes from process.env. Callers
  * that need a raw string should use getRequiredEnvValue. This export remains
