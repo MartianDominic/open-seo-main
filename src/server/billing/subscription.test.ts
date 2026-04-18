@@ -1,13 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { AUTUMN_MANAGED_SERVICE_ACCESS_FEATURE_ID } from "@/shared/billing";
 
-const { checkMock, getOrCreateMock, isHostedServerAuthModeMock } = vi.hoisted(
-  () => ({
-    checkMock: vi.fn(),
-    getOrCreateMock: vi.fn(),
-    isHostedServerAuthModeMock: vi.fn(),
-  }),
-);
+const { checkMock, getOrCreateMock } = vi.hoisted(() => ({
+  checkMock: vi.fn(),
+  getOrCreateMock: vi.fn(),
+}));
 
 vi.mock("@/server/billing/autumn", () => ({
   autumn: {
@@ -16,10 +13,6 @@ vi.mock("@/server/billing/autumn", () => ({
       getOrCreate: getOrCreateMock,
     },
   },
-}));
-
-vi.mock("@/server/lib/runtime-env", () => ({
-  isHostedServerAuthMode: isHostedServerAuthModeMock,
 }));
 
 import {
@@ -46,23 +39,8 @@ describe("subscription billing", () => {
     });
   });
 
-  it("skips the managed service check outside hosted mode", async () => {
-    isHostedServerAuthModeMock.mockResolvedValue(false);
-
-    await expect(
-      requireManagedServiceAccess({
-        organizationId: "org_123",
-        userId: "user_123",
-        userEmail: "alice@example.com",
-      }),
-    ).resolves.toBeUndefined();
-
-    expect(getOrCreateMock).not.toHaveBeenCalled();
-    expect(checkMock).not.toHaveBeenCalled();
-  });
-
   it("throws payment required when the org lacks managed service access", async () => {
-    isHostedServerAuthModeMock.mockResolvedValue(true);
+    // Clerk auth is always hosted - billing checks always apply
     getOrCreateMock.mockResolvedValue({ id: "org_123" });
     checkMock.mockResolvedValue({ allowed: false });
 
@@ -73,6 +51,19 @@ describe("subscription billing", () => {
         userEmail: "alice@example.com",
       }),
     ).rejects.toMatchObject({ code: "PAYMENT_REQUIRED" });
+  });
+
+  it("allows access when the org has managed service access", async () => {
+    getOrCreateMock.mockResolvedValue({ id: "org_123" });
+    checkMock.mockResolvedValue({ allowed: true });
+
+    await expect(
+      requireManagedServiceAccess({
+        organizationId: "org_123",
+        userId: "user_123",
+        userEmail: "alice@example.com",
+      }),
+    ).resolves.toBeUndefined();
   });
 
   it("looks up the billing customer by organization id", async () => {

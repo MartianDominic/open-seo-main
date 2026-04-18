@@ -1,2 +1,2 @@
 export * from "./app.schema";
-export * from "./better-auth-schema";
+export * from "./user-schema";

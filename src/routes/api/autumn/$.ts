@@ -1,11 +1,10 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { autumnHandler } from "autumn-js/fetch";
-import { isHostedAuthMode } from "@/lib/auth-mode";
-import { resolveHostedContext } from "@/middleware/ensure-user/hosted";
+import { resolveUserContext } from "@/middleware/ensure-user";
 
 const handler = autumnHandler({
   identify: async (request) => {
-    const context = await resolveHostedContext(request.headers);
+    const context = await resolveUserContext(request.headers);
 
     return {
       customerId: context.organizationId,
@@ -14,12 +13,7 @@ const handler = autumnHandler({
 });
 
 function handleAutumnRequest(request: Request) {
-  if (!isHostedAuthMode(process.env.AUTH_MODE)) {
-    return new Response("Not found", {
-      status: 404,
-    });
-  }
-
+  // Clerk auth is always hosted - no mode check needed
   return handler(request);
 }
 

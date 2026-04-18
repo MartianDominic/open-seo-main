@@ -37,7 +37,6 @@ import {
 } from "@/server/lib/dataforseoCost";
 import { AppError } from "@/server/lib/errors";
 import { captureServerEvent } from "@/server/lib/posthog";
-import { isHostedServerAuthMode } from "@/server/lib/runtime-env";
 
 type CreditFeature =
   | "keyword_research"
@@ -213,13 +212,7 @@ async function meterDataforseoCall<T>(
   customer: BillingCustomerContext,
   execute: () => Promise<DataforseoApiResponse<T>>,
 ): Promise<T> {
-  const isHostedMode = await isHostedServerAuthMode();
-
-  if (!isHostedMode) {
-    const result = await execute();
-    return result.data;
-  }
-
+  // Clerk auth is always hosted - billing metering always applies
   const billingCustomer = await getOrCreateOrganizationCustomer(customer);
 
   const { monthlyRemaining } = await assertSeoDataBalanceAvailable({

@@ -11,13 +11,11 @@ interface TrackCallArg {
   properties?: { balanceFeatureId: string };
 }
 
-const { checkMock, trackMock, getOrCreateMock, isHostedServerAuthModeMock } =
-  vi.hoisted(() => ({
-    checkMock: vi.fn(),
-    trackMock: vi.fn<(arg: TrackCallArg) => void>(),
-    getOrCreateMock: vi.fn(),
-    isHostedServerAuthModeMock: vi.fn(),
-  }));
+const { checkMock, trackMock, getOrCreateMock } = vi.hoisted(() => ({
+  checkMock: vi.fn(),
+  trackMock: vi.fn<(arg: TrackCallArg) => void>(),
+  getOrCreateMock: vi.fn(),
+}));
 
 vi.mock("@/server/billing/autumn", () => ({
   autumn: {
@@ -28,10 +26,6 @@ vi.mock("@/server/billing/autumn", () => ({
 
 vi.mock("@/server/billing/subscription", () => ({
   getOrCreateOrganizationCustomer: getOrCreateMock,
-}));
-
-vi.mock("@/server/lib/runtime-env", () => ({
-  isHostedServerAuthMode: isHostedServerAuthModeMock,
 }));
 
 vi.mock("@/server/lib/posthog", () => ({
@@ -75,8 +69,8 @@ const backlinksInput = {
   target: "example.com",
 };
 
-function setupHostedMode() {
-  isHostedServerAuthModeMock.mockResolvedValue(true);
+function setupBillingMocks() {
+  // Clerk auth is always hosted - billing always applies
   getOrCreateMock.mockResolvedValue({ id: "org_123" });
 }
 
@@ -104,20 +98,8 @@ describe("meterDataforseoCall with split balances", () => {
     vi.clearAllMocks();
   });
 
-  it("skips billing in non-hosted mode", async () => {
-    isHostedServerAuthModeMock.mockResolvedValue(false);
-    mockDataforseoResult(0.05);
-
-    const client = createDataforseoClient(billingCustomer);
-    const result = await client.backlinks.summary(backlinksInput);
-
-    expect(result).toEqual({ rank: 42 });
-    expect(checkMock).not.toHaveBeenCalled();
-    expect(trackMock).not.toHaveBeenCalled();
-  });
-
   it("checks both monthly and topup balances in parallel", async () => {
-    setupHostedMode();
+    setupBillingMocks();
     mockBalances(5000, 3000);
     mockDataforseoResult(0.05);
 
@@ -136,7 +118,7 @@ describe("meterDataforseoCall with split balances", () => {
   });
 
   it("deducts entirely from monthly when monthly has enough", async () => {
-    setupHostedMode();
+    setupBillingMocks();
     mockBalances(5000, 3000);
     mockDataforseoResult(0.05);
 
@@ -154,7 +136,7 @@ describe("meterDataforseoCall with split balances", () => {
   });
 
   it("deducts entirely from topup when monthly is empty", async () => {
-    setupHostedMode();
+    setupBillingMocks();
     mockBalances(0, 5000);
     mockDataforseoResult(0.05);
 
@@ -172,7 +154,7 @@ describe("meterDataforseoCall with split balances", () => {
   });
 
   it("splits deduction across monthly and topup when monthly is partially sufficient", async () => {
-    setupHostedMode();
+    setupBillingMocks();
     mockBalances(30, 5000);
     mockDataforseoResult(0.05);
 
@@ -197,7 +179,7 @@ describe("meterDataforseoCall with split balances", () => {
   });
 
   it("throws PAYMENT_REQUIRED when combined balance is below minimum", async () => {
-    setupHostedMode();
+    setupBillingMocks();
     // minimum is 150 credits (0.15 USD * 1000); 50 + 50 = 100 < 150
     mockBalances(50, 50);
 
@@ -210,7 +192,7 @@ describe("meterDataforseoCall with split balances", () => {
   });
 
   it("throws PAYMENT_REQUIRED when both balances are zero", async () => {
-    setupHostedMode();
+    setupBillingMocks();
     mockBalances(0, 0);
 
     const client = createDataforseoClient(billingCustomer);
@@ -220,7 +202,7 @@ describe("meterDataforseoCall with split balances", () => {
   });
 
   it("includes balanceFeatureId in track properties", async () => {
-    setupHostedMode();
+    setupBillingMocks();
     mockBalances(30, 5000);
     mockDataforseoResult(0.05);
 

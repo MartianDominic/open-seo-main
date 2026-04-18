@@ -10,10 +10,10 @@ import {
   index,
 } from "drizzle-orm/pg-core";
 import { desc } from "drizzle-orm";
-import { organization } from "./better-auth-schema";
+import { organization } from "./user-schema";
 
 // This stores users for Cloudflare Access and local_noauth mode
-// since they don't map to better-auth's user schema
+// since they don't map to the main user schema
 export const delegatedUsers = pgTable("delegated_users", {
   id: text("id").primaryKey(),
   email: text("email").notNull().unique(),

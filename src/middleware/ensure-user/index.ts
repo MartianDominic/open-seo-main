@@ -3,7 +3,7 @@ import type { EnsuredUserContext } from "./types";
 
 /**
  * Resolve authenticated user context from Clerk JWT.
- * All authentication now goes through Clerk - no more better-auth.
+ * All authentication is handled by Clerk.
  */
 export async function resolveUserContext(
   headers: Headers,

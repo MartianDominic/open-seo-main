@@ -1,6 +1,6 @@
 import { eq } from "drizzle-orm";
 import { db } from "@/db";
-import { user } from "@/db/better-auth-schema";
+import { user } from "@/db/user-schema";
 import { verifyClerkJWT } from "@/server/lib/clerk-jwt";
 import { AppError } from "@/server/lib/errors";
 import type { EnsuredUserContext } from "./types";

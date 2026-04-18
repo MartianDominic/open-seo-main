@@ -1,10 +1,7 @@
 import { z } from "zod";
-import {
-  getWorkersBinding,
-  isHostedServerAuthMode,
-} from "@/server/lib/runtime-env";
 
-const BACKLINKS_ACCESS_STATUS_KEY = "settings:backlinks-access:v2:global";
+const BACKLINKS_NOT_ENABLED_MESSAGE =
+  "Backlinks access check failed - it's still not enabled for your DataForSEO account. Enable it in DataForSEO, then try again.";
 
 const backlinksAccessStatusSchema = z.object({
   enabled: z.boolean(),
@@ -16,44 +13,24 @@ const backlinksAccessStatusSchema = z.object({
 
 type BacklinksAccessStatus = z.infer<typeof backlinksAccessStatusSchema>;
 
-const BACKLINKS_NOT_ENABLED_MESSAGE =
-  "Backlinks access check failed - it's still not enabled for your DataForSEO account. Enable it in DataForSEO, then try again.";
-
+/**
+ * Get backlinks access status.
+ * With Clerk auth (always hosted), backlinks are treated as platform-managed.
+ */
 export async function getBacklinksAccessStatus(): Promise<BacklinksAccessStatus> {
-  if (await isHostedServerAuthMode()) {
-    // Hosted mode treats backlinks as platform-managed, so we intentionally
-    // skip self-service verification and surface backlinks as available.
-    return getHostedBacklinksAccessStatus();
-  }
-
-  const kv = await getKvNamespace();
-  const raw = await kv.get(BACKLINKS_ACCESS_STATUS_KEY, "text");
-  if (!raw) {
-    return getDefaultBacklinksAccessStatus();
-  }
-
-  const json = parseJsonUnknown(raw);
-  if (json === null) {
-    return getDefaultBacklinksAccessStatus();
-  }
-
-  const parsed = backlinksAccessStatusSchema.safeParse(json);
-  if (!parsed.success) {
-    return getDefaultBacklinksAccessStatus();
-  }
-
-  return parsed.data;
+  // Clerk auth is always hosted - backlinks are platform-managed
+  return getHostedBacklinksAccessStatus();
 }
 
+/**
+ * Set backlinks access status.
+ * With Clerk auth (always hosted), this is a no-op since backlinks are platform-managed.
+ */
 export async function setBacklinksAccessStatus(
-  status: BacklinksAccessStatus,
+  _status: BacklinksAccessStatus,
 ): Promise<void> {
-  if (await isHostedServerAuthMode()) {
-    return;
-  }
-
-  const kv = await getKvNamespace();
-  await kv.put(BACKLINKS_ACCESS_STATUS_KEY, JSON.stringify(status));
+  // Clerk auth is always hosted - no KV storage needed
+  return;
 }
 
 export function buildVerifiedBacklinksAccessStatus(
@@ -81,16 +58,6 @@ export function buildBacklinksDisabledAccessStatus(
   };
 }
 
-function getDefaultBacklinksAccessStatus(): BacklinksAccessStatus {
-  return {
-    enabled: false,
-    verifiedAt: null,
-    lastCheckedAt: null,
-    lastErrorCode: null,
-    lastErrorMessage: null,
-  };
-}
-
 function getHostedBacklinksAccessStatus(): BacklinksAccessStatus {
   return {
     enabled: true,
@@ -99,32 +66,4 @@ function getHostedBacklinksAccessStatus(): BacklinksAccessStatus {
     lastErrorCode: null,
     lastErrorMessage: null,
   };
-}
-
-async function getKvNamespace(): Promise<KVNamespace> {
-  const binding = await getWorkersBinding("KV");
-  if (isKvNamespace(binding)) {
-    return binding;
-  }
-
-  throw new Error("KV binding is not configured correctly");
-}
-
-function isKvNamespace(value: unknown): value is KVNamespace {
-  return (
-    typeof value === "object" &&
-    value !== null &&
-    "get" in value &&
-    typeof value.get === "function" &&
-    "put" in value &&
-    typeof value.put === "function"
-  );
-}
-
-function parseJsonUnknown(raw: string): unknown {
-  try {
-    return JSON.parse(raw) as unknown;
-  } catch {
-    return null;
-  }
 }

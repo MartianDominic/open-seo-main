@@ -1,5 +1,4 @@
 import { PostHog } from "posthog-node";
-import { isHostedServerAuthMode } from "@/server/lib/runtime-env";
 
 /** Returns a one-shot PostHog client, or null if the key is missing. Caller must shut down after use. */
 function getServerPostHogClient(): PostHog | null {
@@ -18,10 +17,6 @@ export async function captureServerError(
   error: unknown,
   properties: Record<string, string | null | undefined> = {},
 ) {
-  if (!(await isHostedServerAuthMode())) {
-    return;
-  }
-
   const client = getServerPostHogClient();
   if (!client) return;
 
@@ -43,10 +38,6 @@ export async function captureServerEvent(args: {
   properties?: Record<string, unknown>;
   organizationId: string;
 }) {
-  if (!(await isHostedServerAuthMode())) {
-    return;
-  }
-
   const client = getServerPostHogClient();
   if (!client) return;
 
