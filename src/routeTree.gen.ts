@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as VerifyEmailRouteImport } from './routes/verify-email'
 import { Route as ResetPasswordRouteImport } from './routes/reset-password'
+import { Route as HealthzRouteImport } from './routes/healthz'
 import { Route as ForgotPasswordRouteImport } from './routes/forgot-password'
 import { Route as AuthenticatedRouteImport } from './routes/_authenticated'
 import { Route as AuthRouteImport } from './routes/_auth'
@@ -22,6 +23,11 @@ import { Route as AuthSignUpRouteImport } from './routes/_auth.sign-up'
 import { Route as AuthSignInRouteImport } from './routes/_auth.sign-in'
 import { Route as AppSupportRouteImport } from './routes/_app/support'
 import { Route as AppBillingRouteImport } from './routes/_app/billing'
+import { Route as ApiSeoProjectsRouteImport } from './routes/api/seo/projects'
+import { Route as ApiSeoKeywordsRouteImport } from './routes/api/seo/keywords'
+import { Route as ApiSeoDomainRouteImport } from './routes/api/seo/domain'
+import { Route as ApiSeoBacklinksRouteImport } from './routes/api/seo/backlinks'
+import { Route as ApiSeoAuditsRouteImport } from './routes/api/seo/audits'
 import { Route as ApiAutumnSplatRouteImport } from './routes/api/autumn/$'
 import { Route as ApiAuthSplatRouteImport } from './routes/api/auth/$'
 import { Route as AppHelpDataforseoApiKeyRouteImport } from './routes/_app/help/dataforseo-api-key'
@@ -44,6 +50,11 @@ const VerifyEmailRoute = VerifyEmailRouteImport.update({
 const ResetPasswordRoute = ResetPasswordRouteImport.update({
   id: '/reset-password',
   path: '/reset-password',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const HealthzRoute = HealthzRouteImport.update({
+  id: '/healthz',
+  path: '/healthz',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ForgotPasswordRoute = ForgotPasswordRouteImport.update({
@@ -96,6 +107,31 @@ const AppBillingRoute = AppBillingRouteImport.update({
   id: '/billing',
   path: '/billing',
   getParentRoute: () => AppRouteRoute,
+} as any)
+const ApiSeoProjectsRoute = ApiSeoProjectsRouteImport.update({
+  id: '/api/seo/projects',
+  path: '/api/seo/projects',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiSeoKeywordsRoute = ApiSeoKeywordsRouteImport.update({
+  id: '/api/seo/keywords',
+  path: '/api/seo/keywords',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiSeoDomainRoute = ApiSeoDomainRouteImport.update({
+  id: '/api/seo/domain',
+  path: '/api/seo/domain',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiSeoBacklinksRoute = ApiSeoBacklinksRouteImport.update({
+  id: '/api/seo/backlinks',
+  path: '/api/seo/backlinks',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiSeoAuditsRoute = ApiSeoAuditsRouteImport.update({
+  id: '/api/seo/audits',
+  path: '/api/seo/audits',
+  getParentRoute: () => rootRouteImport,
 } as any)
 const ApiAutumnSplatRoute = ApiAutumnSplatRouteImport.update({
   id: '/api/autumn/$',
@@ -170,6 +206,7 @@ const ProjectPProjectIdAuditIssuesResultIdRoute =
 export interface FileRoutesByFullPath {
   '/': typeof AppIndexRoute
   '/forgot-password': typeof ForgotPasswordRoute
+  '/healthz': typeof HealthzRoute
   '/reset-password': typeof ResetPasswordRoute
   '/verify-email': typeof VerifyEmailRoute
   '/billing': typeof AppBillingRoute
@@ -181,6 +218,11 @@ export interface FileRoutesByFullPath {
   '/help/dataforseo-api-key': typeof AppHelpDataforseoApiKeyRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/api/autumn/$': typeof ApiAutumnSplatRoute
+  '/api/seo/audits': typeof ApiSeoAuditsRoute
+  '/api/seo/backlinks': typeof ApiSeoBacklinksRoute
+  '/api/seo/domain': typeof ApiSeoDomainRoute
+  '/api/seo/keywords': typeof ApiSeoKeywordsRoute
+  '/api/seo/projects': typeof ApiSeoProjectsRoute
   '/p/$projectId/ai': typeof ProjectPProjectIdAiRoute
   '/p/$projectId/audit': typeof ProjectPProjectIdAuditRouteWithChildren
   '/p/$projectId/backlinks': typeof ProjectPProjectIdBacklinksRoute
@@ -194,6 +236,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof AppIndexRoute
   '/forgot-password': typeof ForgotPasswordRoute
+  '/healthz': typeof HealthzRoute
   '/reset-password': typeof ResetPasswordRoute
   '/verify-email': typeof VerifyEmailRoute
   '/billing': typeof AppBillingRoute
@@ -204,6 +247,11 @@ export interface FileRoutesByTo {
   '/help/dataforseo-api-key': typeof AppHelpDataforseoApiKeyRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/api/autumn/$': typeof ApiAutumnSplatRoute
+  '/api/seo/audits': typeof ApiSeoAuditsRoute
+  '/api/seo/backlinks': typeof ApiSeoBacklinksRoute
+  '/api/seo/domain': typeof ApiSeoDomainRoute
+  '/api/seo/keywords': typeof ApiSeoKeywordsRoute
+  '/api/seo/projects': typeof ApiSeoProjectsRoute
   '/p/$projectId/ai': typeof ProjectPProjectIdAiRoute
   '/p/$projectId/backlinks': typeof ProjectPProjectIdBacklinksRoute
   '/p/$projectId/domain': typeof ProjectPProjectIdDomainRoute
@@ -220,6 +268,7 @@ export interface FileRoutesById {
   '/_auth': typeof AuthRouteWithChildren
   '/_authenticated': typeof AuthenticatedRouteWithChildren
   '/forgot-password': typeof ForgotPasswordRoute
+  '/healthz': typeof HealthzRoute
   '/reset-password': typeof ResetPasswordRoute
   '/verify-email': typeof VerifyEmailRoute
   '/_app/billing': typeof AppBillingRoute
@@ -232,6 +281,11 @@ export interface FileRoutesById {
   '/_app/help/dataforseo-api-key': typeof AppHelpDataforseoApiKeyRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/api/autumn/$': typeof ApiAutumnSplatRoute
+  '/api/seo/audits': typeof ApiSeoAuditsRoute
+  '/api/seo/backlinks': typeof ApiSeoBacklinksRoute
+  '/api/seo/domain': typeof ApiSeoDomainRoute
+  '/api/seo/keywords': typeof ApiSeoKeywordsRoute
+  '/api/seo/projects': typeof ApiSeoProjectsRoute
   '/_project/p/$projectId/ai': typeof ProjectPProjectIdAiRoute
   '/_project/p/$projectId/audit': typeof ProjectPProjectIdAuditRouteWithChildren
   '/_project/p/$projectId/backlinks': typeof ProjectPProjectIdBacklinksRoute
@@ -247,6 +301,7 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/forgot-password'
+    | '/healthz'
     | '/reset-password'
     | '/verify-email'
     | '/billing'
@@ -258,6 +313,11 @@ export interface FileRouteTypes {
     | '/help/dataforseo-api-key'
     | '/api/auth/$'
     | '/api/autumn/$'
+    | '/api/seo/audits'
+    | '/api/seo/backlinks'
+    | '/api/seo/domain'
+    | '/api/seo/keywords'
+    | '/api/seo/projects'
     | '/p/$projectId/ai'
     | '/p/$projectId/audit'
     | '/p/$projectId/backlinks'
@@ -271,6 +331,7 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/forgot-password'
+    | '/healthz'
     | '/reset-password'
     | '/verify-email'
     | '/billing'
@@ -281,6 +342,11 @@ export interface FileRouteTypes {
     | '/help/dataforseo-api-key'
     | '/api/auth/$'
     | '/api/autumn/$'
+    | '/api/seo/audits'
+    | '/api/seo/backlinks'
+    | '/api/seo/domain'
+    | '/api/seo/keywords'
+    | '/api/seo/projects'
     | '/p/$projectId/ai'
     | '/p/$projectId/backlinks'
     | '/p/$projectId/domain'
@@ -296,6 +362,7 @@ export interface FileRouteTypes {
     | '/_auth'
     | '/_authenticated'
     | '/forgot-password'
+    | '/healthz'
     | '/reset-password'
     | '/verify-email'
     | '/_app/billing'
@@ -308,6 +375,11 @@ export interface FileRouteTypes {
     | '/_app/help/dataforseo-api-key'
     | '/api/auth/$'
     | '/api/autumn/$'
+    | '/api/seo/audits'
+    | '/api/seo/backlinks'
+    | '/api/seo/domain'
+    | '/api/seo/keywords'
+    | '/api/seo/projects'
     | '/_project/p/$projectId/ai'
     | '/_project/p/$projectId/audit'
     | '/_project/p/$projectId/backlinks'
@@ -325,10 +397,16 @@ export interface RootRouteChildren {
   AuthRoute: typeof AuthRouteWithChildren
   AuthenticatedRoute: typeof AuthenticatedRouteWithChildren
   ForgotPasswordRoute: typeof ForgotPasswordRoute
+  HealthzRoute: typeof HealthzRoute
   ResetPasswordRoute: typeof ResetPasswordRoute
   VerifyEmailRoute: typeof VerifyEmailRoute
   ApiAuthSplatRoute: typeof ApiAuthSplatRoute
   ApiAutumnSplatRoute: typeof ApiAutumnSplatRoute
+  ApiSeoAuditsRoute: typeof ApiSeoAuditsRoute
+  ApiSeoBacklinksRoute: typeof ApiSeoBacklinksRoute
+  ApiSeoDomainRoute: typeof ApiSeoDomainRoute
+  ApiSeoKeywordsRoute: typeof ApiSeoKeywordsRoute
+  ApiSeoProjectsRoute: typeof ApiSeoProjectsRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -345,6 +423,13 @@ declare module '@tanstack/react-router' {
       path: '/reset-password'
       fullPath: '/reset-password'
       preLoaderRoute: typeof ResetPasswordRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/healthz': {
+      id: '/healthz'
+      path: '/healthz'
+      fullPath: '/healthz'
+      preLoaderRoute: typeof HealthzRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/forgot-password': {
@@ -423,6 +508,41 @@ declare module '@tanstack/react-router' {
       fullPath: '/billing'
       preLoaderRoute: typeof AppBillingRouteImport
       parentRoute: typeof AppRouteRoute
+    }
+    '/api/seo/projects': {
+      id: '/api/seo/projects'
+      path: '/api/seo/projects'
+      fullPath: '/api/seo/projects'
+      preLoaderRoute: typeof ApiSeoProjectsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/seo/keywords': {
+      id: '/api/seo/keywords'
+      path: '/api/seo/keywords'
+      fullPath: '/api/seo/keywords'
+      preLoaderRoute: typeof ApiSeoKeywordsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/seo/domain': {
+      id: '/api/seo/domain'
+      path: '/api/seo/domain'
+      fullPath: '/api/seo/domain'
+      preLoaderRoute: typeof ApiSeoDomainRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/seo/backlinks': {
+      id: '/api/seo/backlinks'
+      path: '/api/seo/backlinks'
+      fullPath: '/api/seo/backlinks'
+      preLoaderRoute: typeof ApiSeoBacklinksRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/seo/audits': {
+      id: '/api/seo/audits'
+      path: '/api/seo/audits'
+      fullPath: '/api/seo/audits'
+      preLoaderRoute: typeof ApiSeoAuditsRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/api/autumn/$': {
       id: '/api/autumn/$'
@@ -621,10 +741,16 @@ const rootRouteChildren: RootRouteChildren = {
   AuthRoute: AuthRouteWithChildren,
   AuthenticatedRoute: AuthenticatedRouteWithChildren,
   ForgotPasswordRoute: ForgotPasswordRoute,
+  HealthzRoute: HealthzRoute,
   ResetPasswordRoute: ResetPasswordRoute,
   VerifyEmailRoute: VerifyEmailRoute,
   ApiAuthSplatRoute: ApiAuthSplatRoute,
   ApiAutumnSplatRoute: ApiAutumnSplatRoute,
+  ApiSeoAuditsRoute: ApiSeoAuditsRoute,
+  ApiSeoBacklinksRoute: ApiSeoBacklinksRoute,
+  ApiSeoDomainRoute: ApiSeoDomainRoute,
+  ApiSeoKeywordsRoute: ApiSeoKeywordsRoute,
+  ApiSeoProjectsRoute: ApiSeoProjectsRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
