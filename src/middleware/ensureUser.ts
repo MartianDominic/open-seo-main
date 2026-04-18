@@ -1,9 +1,6 @@
 import { createMiddleware } from "@tanstack/react-start";
 import { getRequest } from "@tanstack/react-start/server";
-import { getAuthMode, isHostedAuthMode } from "@/lib/auth-mode";
-import { resolveCloudflareAccessContext } from "@/middleware/ensure-user/cloudflareAccess";
-import { resolveLocalNoAuthContext } from "@/middleware/ensure-user/delegated";
-import { resolveHostedContext } from "@/middleware/ensure-user/hosted";
+import { resolveUserContext } from "@/middleware/ensure-user";
 import type {
   EnsuredProject,
   EnsuredUserContext,
@@ -23,35 +20,20 @@ function extractProjectId(data: unknown) {
 }
 
 /**
- * Authentication middleware — honors AUTH-01 and AUTH-02.
+ * Authentication middleware — verifies Clerk JWT from Authorization header.
  *
- * - AUTH-01: when `resolveHostedContext(headers)` cannot find a valid
- *   better-auth session it throws `AppError("UNAUTHENTICATED")`, which
- *   surfaces to the client as a 401. Do NOT swallow this — it is the
- *   single source of truth for "unauthenticated requests are rejected".
- * - AUTH-02: on success, `EnsuredUserContext` exposes `userId`,
- *   `userEmail`, and `organizationId` to every downstream server fn.
- *   Phase 6 (AUTH-03) layers `clientId` on top in serverFunctions/middleware.
+ * - Extracts Bearer token from Authorization header
+ * - Verifies JWT against Clerk JWKS
+ * - Looks up or creates user by clerk_user_id
+ * - Returns EnsuredUserContext with userId, userEmail, organizationId
  *
- * Auth modes:
- *   - `AUTH_MODE=hosted` (prod default, set in .env.vps.example) uses better-auth.
- *   - `AUTH_MODE=local_noauth` delegates to a fixture user (dev only).
- *   - Cloudflare Access path retained for legacy deploys.
+ * Throws AppError("UNAUTHENTICATED") if token is missing, invalid, or expired.
  */
 export const ensureUserMiddleware = createMiddleware({
   type: "function",
 }).server(async ({ next, data }) => {
-  const authMode = getAuthMode(process.env.AUTH_MODE);
   const headers = getRequest().headers;
-  let context: EnsuredUserContext;
-
-  if (authMode === "local_noauth") {
-    context = await resolveLocalNoAuthContext();
-  } else if (isHostedAuthMode(authMode)) {
-    context = await resolveHostedContext(headers);
-  } else {
-    context = await resolveCloudflareAccessContext(headers);
-  }
+  const context: EnsuredUserContext = await resolveUserContext(headers);
 
   const projectId = extractProjectId(data);
 
