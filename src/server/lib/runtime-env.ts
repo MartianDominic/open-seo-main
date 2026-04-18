@@ -1,5 +1,3 @@
-import { isHostedAuthMode } from "@/lib/auth-mode";
-
 /**
  * Read an env var. Returns undefined if unset or empty after trim.
  * Node.js runtime only — no Cloudflare Workers fallback.
@@ -28,10 +26,6 @@ export async function getOptionalEnvValue(
   name: string,
 ): Promise<string | undefined> {
   return readEnv(name);
-}
-
-export async function isHostedServerAuthMode(): Promise<boolean> {
-  return isHostedAuthMode(readEnv("AUTH_MODE"));
 }
 
 /**
@@ -74,9 +68,8 @@ export function validateEnv(required: readonly string[]): void {
 export const REQUIRED_ENV_HOSTED = [
   "DATABASE_URL",
   "REDIS_URL",
-  "BETTER_AUTH_SECRET",
-  "BETTER_AUTH_URL",
   "ALWRITY_DATABASE_URL",
+  "CLERK_PUBLISHABLE_KEY",
 ] as const;
 
 /** Always-required vars regardless of auth mode. */
@@ -84,4 +77,5 @@ export const REQUIRED_ENV_CORE = [
   "DATABASE_URL",
   "REDIS_URL",
   "ALWRITY_DATABASE_URL",
+  "CLERK_PUBLISHABLE_KEY",
 ] as const;
