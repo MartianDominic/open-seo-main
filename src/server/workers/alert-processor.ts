@@ -12,6 +12,7 @@ import { createAlert, getAlertRule } from "@/services/alerts";
 import { markDropEventsProcessed } from "@/services/rank-events";
 import { shouldSendEmail, sendAlertEmail } from "@/services/alert-notifications";
 import { alerts } from "@/db/alert-schema";
+import { emitAlertTriggered, emitRankingDrop } from "@/services/webhook-dispatcher";
 
 const log = createLogger({ module: "alert-processor" });
 
@@ -131,6 +132,24 @@ async function processDropEvents(clientId?: string): Promise<CreatedAlert[]> {
         eventId: event.id,
         keyword: event.keyword,
         dropAmount: event.dropAmount,
+      });
+
+      // Emit webhook events
+      await emitAlertTriggered({
+        alertId,
+        alertType: "ranking_drop",
+        severity: rule.severity,
+        title: `Ranking dropped for "${event.keyword}"`,
+        clientId: eventClientId,
+      });
+
+      await emitRankingDrop({
+        keyword: event.keyword,
+        previousPosition: event.previousPosition,
+        currentPosition: event.currentPosition,
+        dropAmount: event.dropAmount,
+        clientId: eventClientId,
+        keywordId: event.keywordId,
       });
 
       // Send email notification if enabled
