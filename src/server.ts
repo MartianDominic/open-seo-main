@@ -8,6 +8,8 @@ import {
 import { closeRedis } from "@/server/lib/redis";
 import { pool } from "@/db";
 import { createLogger } from "@/server/lib/logger";
+import { createServer } from "http";
+import { initSocketServer } from "@/server/websocket/socket-server";
 
 const log = createLogger({ module: "server" });
 
@@ -22,6 +24,14 @@ startAuditWorker();
 
 // Start analytics worker (initializes nightly scheduler at 02:00 UTC)
 void startAnalyticsWorker();
+
+// Start WebSocket server on separate port for real-time dashboard updates
+const WS_PORT = process.env.WS_PORT ? Number(process.env.WS_PORT) : 3002;
+const wsServer = createServer();
+initSocketServer(wsServer);
+wsServer.listen(WS_PORT, () => {
+  log.info("WebSocket server listening", { port: WS_PORT });
+});
 
 // Graceful shutdown: drain Worker (up to 25s), then close Redis connections,
 // then close Postgres pool. Order matters — Worker may still write to DB/Redis
@@ -50,6 +60,12 @@ async function shutdown(signal: string): Promise<void> {
     await pool.end();
   } catch (err) {
     log.error("pool.end failed", err instanceof Error ? err : new Error(String(err)));
+  }
+  try {
+    wsServer.close();
+    log.info("WebSocket server closed");
+  } catch (err) {
+    log.error("wsServer.close failed", err instanceof Error ? err : new Error(String(err)));
   }
   log.info("Shutdown complete");
   process.exit(0);
