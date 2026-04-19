@@ -7,3 +7,4 @@ export * from "./branding-schema";
 export * from "./ranking-schema";
 export * from "./rank-events-schema";
 export * from "./alert-schema";
+export * from "./webhook-schema";
