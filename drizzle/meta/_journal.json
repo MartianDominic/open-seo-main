@@ -29,6 +29,13 @@
       "when": 1776594600000,
       "tag": "0003_analytics_snapshots",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1776681844000,
+      "tag": "0004_report_metadata",
+      "breakpoints": true
     }
   ]
 }
