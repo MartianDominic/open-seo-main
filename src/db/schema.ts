@@ -5,3 +5,4 @@ export * from "./report-schema";
 export * from "./schedule-schema";
 export * from "./branding-schema";
 export * from "./ranking-schema";
+export * from "./rank-events-schema";

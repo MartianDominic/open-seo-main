@@ -13,6 +13,7 @@ import { keywordRankings } from "@/db/ranking-schema";
 import { fetchLiveSerpItemsRaw, type SerpLiveItem } from "@/server/lib/dataforseo";
 import { createLogger } from "@/server/lib/logger";
 import type { RankingJobData } from "@/server/queues/rankingQueue";
+import { recordDropEvent } from "@/services/rank-events";
 
 const log = createLogger({ module: "ranking-processor" });
 
@@ -93,11 +94,15 @@ async function processBatch(
     locationCode: number;
     languageCode: string;
     projectDomain: string | null;
+    projectId: string;
+    clientId: string | null;
+    dropAlertThreshold: number | null;
   }>,
   today: Date,
-): Promise<{ success: number; failed: number }> {
+): Promise<{ success: number; failed: number; drops: number }> {
   let success = 0;
   let failed = 0;
+  let drops = 0;
 
   for (const kw of keywords) {
     try {
@@ -124,6 +129,33 @@ async function processBatch(
         serpFeatures,
       });
 
+      // Check for rank drop and record event if threshold exceeded
+      const threshold = kw.dropAlertThreshold ?? 5;
+      if (previousPosition !== null && position > 0 && previousPosition > 0) {
+        const dropAmount = position - previousPosition;
+        if (dropAmount >= threshold) {
+          await recordDropEvent({
+            keywordId: kw.id,
+            projectId: kw.projectId,
+            clientId: kw.clientId,
+            keyword: kw.keyword,
+            previousPosition,
+            currentPosition: position,
+            dropAmount,
+            threshold,
+          });
+          drops++;
+          log.warn("Rank drop detected", {
+            keywordId: kw.id,
+            keyword: kw.keyword,
+            previousPosition,
+            currentPosition: position,
+            dropAmount,
+            threshold,
+          });
+        }
+      }
+
       success++;
       log.info("Ranking recorded", {
         keywordId: kw.id,
@@ -143,7 +175,7 @@ async function processBatch(
     await sleep(RATE_LIMIT_DELAY_MS);
   }
 
-  return { success, failed };
+  return { success, failed, drops };
 }
 
 /**
@@ -159,10 +191,11 @@ export default async function processor(job: Job<RankingJobData>): Promise<void>
   let offset = 0;
   let totalSuccess = 0;
   let totalFailed = 0;
+  let totalDrops = 0;
 
   // Process in batches
   while (true) {
-    // Query tracking-enabled keywords with project domain
+    // Query tracking-enabled keywords with project domain and alert config
     const keywords = await db
       .select({
         id: savedKeywords.id,
@@ -170,6 +203,9 @@ export default async function processor(job: Job<RankingJobData>): Promise<void>
         locationCode: savedKeywords.locationCode,
         languageCode: savedKeywords.languageCode,
         projectDomain: projects.domain,
+        projectId: savedKeywords.projectId,
+        clientId: projects.organizationId, // organizationId maps to clientId
+        dropAlertThreshold: savedKeywords.dropAlertThreshold,
       })
       .from(savedKeywords)
       .innerJoin(projects, eq(savedKeywords.projectId, projects.id))
@@ -181,15 +217,17 @@ export default async function processor(job: Job<RankingJobData>): Promise<void>
       break;
     }
 
-    const { success, failed } = await processBatch(keywords, today);
+    const { success, failed, drops } = await processBatch(keywords, today);
     totalSuccess += success;
     totalFailed += failed;
+    totalDrops += drops;
     offset += BATCH_SIZE;
 
     jobLogger.info("Batch completed", {
       batchSize: keywords.length,
       success,
       failed,
+      drops,
       totalProcessed: offset,
     });
   }
@@ -197,6 +235,7 @@ export default async function processor(job: Job<RankingJobData>): Promise<void>
   jobLogger.info("Ranking check completed", {
     totalSuccess,
     totalFailed,
+    totalDrops,
     totalProcessed: totalSuccess + totalFailed,
   });
 }

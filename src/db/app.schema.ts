@@ -43,6 +43,7 @@ export const savedKeywords = pgTable(
     locationCode: integer("location_code").notNull().default(2840),
     languageCode: text("language_code").notNull().default("en"),
     trackingEnabled: boolean("tracking_enabled").default(true),
+    dropAlertThreshold: integer("drop_alert_threshold").default(5), // Alert if rank drops by this many positions
     createdAt: timestamp("created_at", { withTimezone: true, mode: "date" }).notNull().defaultNow(),
   },
   (table) => [
