@@ -36,6 +36,13 @@
       "when": 1776681844000,
       "tag": "0004_report_metadata",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1776618200000,
+      "tag": "0005_keyword_rankings",
+      "breakpoints": true
     }
   ]
 }
