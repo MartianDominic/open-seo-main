@@ -5,6 +5,7 @@
  */
 import { validateEnv, REQUIRED_ENV_CORE } from "@/server/lib/runtime-env";
 import { startAuditWorker, stopAuditWorker } from "@/server/workers/audit-worker";
+import { startReportWorker, stopReportWorker } from "@/server/workers/report-worker";
 import { closeRedis } from "@/server/lib/redis";
 import { pool } from "@/db";
 import { createLogger } from "@/server/lib/logger";
@@ -16,12 +17,16 @@ validateEnv(REQUIRED_ENV_CORE);
 startAuditWorker();
 log.info("Audit worker started");
 
+startReportWorker();
+log.info("Report worker started");
+
 let shuttingDown = false;
 async function shutdown(signal: string): Promise<void> {
   if (shuttingDown) return;
   shuttingDown = true;
   log.info("Shutdown signal received", { signal });
   try { await stopAuditWorker(); } catch (err) { log.error("stopAuditWorker failed", err instanceof Error ? err : new Error(String(err))); }
+  try { await stopReportWorker(); } catch (err) { log.error("stopReportWorker failed", err instanceof Error ? err : new Error(String(err))); }
   try { await closeRedis(); } catch (err) { log.error("closeRedis failed", err instanceof Error ? err : new Error(String(err))); }
   try { await pool.end(); } catch (err) { log.error("pool.end failed", err instanceof Error ? err : new Error(String(err))); }
   log.info("Shutdown complete");
