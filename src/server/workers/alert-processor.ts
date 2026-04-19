@@ -10,6 +10,8 @@ import { createLogger } from "@/server/lib/logger";
 import type { AlertJobData } from "@/server/queues/alertQueue";
 import { createAlert, getAlertRule } from "@/services/alerts";
 import { markDropEventsProcessed } from "@/services/rank-events";
+import { shouldSendEmail, sendAlertEmail } from "@/services/alert-notifications";
+import { alerts } from "@/db/alert-schema";
 
 const log = createLogger({ module: "alert-processor" });
 
@@ -130,6 +132,29 @@ async function processDropEvents(clientId?: string): Promise<CreatedAlert[]> {
         keyword: event.keyword,
         dropAmount: event.dropAmount,
       });
+
+      // Send email notification if enabled
+      if (rule.emailNotify && (rule.severity === "warning" || rule.severity === "critical")) {
+        // Fetch the alert we just created for email
+        const [createdAlert] = await db
+          .select()
+          .from(alerts)
+          .where(eq(alerts.id, alertId));
+
+        if (createdAlert && shouldSendEmail(createdAlert, rule)) {
+          // TODO: Fetch client email from clients table (requires AI-Writer integration)
+          // For now, log the notification intent
+          const dashboardUrl = `${process.env.APP_URL ?? "https://app.tevero.lt"}/clients/${eventClientId}/alerts`;
+          log.info("Email notification pending", {
+            alertId,
+            severity: rule.severity,
+            dashboardUrl,
+            note: "Client email lookup not yet implemented",
+          });
+          // When client email is available:
+          // await sendAlertEmail(createdAlert, clientEmail, dashboardUrl);
+        }
+      }
     }
   }
 
