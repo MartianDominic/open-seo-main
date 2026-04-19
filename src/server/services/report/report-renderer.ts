@@ -89,6 +89,31 @@ export interface ReportLabels {
 }
 
 /**
+ * Client branding for white-label reports (Phase 16).
+ */
+export interface ReportBranding {
+  logoUrl?: string | null;
+  primaryColor?: string;
+  secondaryColor?: string;
+  footerText?: string | null;
+}
+
+/**
+ * Convert hex color (#RRGGBB) to RGB format for Puppeteer PDF compatibility.
+ */
+function hexToRgb(hex: string): string {
+  const cleanHex = hex.replace(/^#/, "");
+  if (cleanHex.length !== 6) return hex;
+
+  const r = parseInt(cleanHex.substring(0, 2), 16);
+  const g = parseInt(cleanHex.substring(2, 4), 16);
+  const b = parseInt(cleanHex.substring(4, 6), 16);
+
+  if (isNaN(r) || isNaN(g) || isNaN(b)) return hex;
+  return `rgb(${r}, ${g}, ${b})`;
+}
+
+/**
  * Format a number with locale-appropriate separators.
  */
 function formatNumber(num: number, locale: string): string {
@@ -231,18 +256,32 @@ function getStyles(): string {
 }
 
 /**
- * Render header section.
+ * Render header section with optional branding.
  */
 function renderHeader(
   data: ReportRenderData,
   labels: ReportLabels,
+  branding?: ReportBranding,
 ): string {
   const { metadata } = data;
   const dateRangeStr = `${formatDate(metadata.dateRange.start, metadata.locale)} - ${formatDate(metadata.dateRange.end, metadata.locale)}`;
 
+  // Use branding primary color if provided, else default
+  const primaryColor = branding?.primaryColor
+    ? hexToRgb(branding.primaryColor)
+    : COLORS.primary;
+
+  // Logo HTML (only if branding.logoUrl is set)
+  const logoHtml = branding?.logoUrl
+    ? `<div class="logo" style="margin-bottom: 12px;">
+        <img src="${escapeHtml(branding.logoUrl)}" alt="${escapeHtml(metadata.clientName)} logo" style="max-height: 48px; max-width: 200px; object-fit: contain;" />
+      </div>`
+    : "";
+
   return `
     <div class="header">
-      <h1>${labels.title} - ${metadata.clientName}</h1>
+      ${logoHtml}
+      <h1 style="color: ${primaryColor};">${escapeHtml(metadata.clientName)}</h1>
       <div class="subtitle">${labels.subtitle}</div>
       <div class="date-range">${labels.dateRange}: ${dateRangeStr}</div>
     </div>
@@ -337,18 +376,27 @@ function renderQueriesTable(
 }
 
 /**
- * Render footer with generation timestamp.
+ * Render footer with generation timestamp and optional branding.
+ *
+ * SECURITY NOTE: branding.footerText is pre-sanitized by the API layer
+ * (Plan 16-03) using DOMPurify. Only safe tags are allowed.
  */
 function renderFooter(
   data: ReportRenderData,
   labels: ReportLabels,
+  branding?: ReportBranding,
 ): string {
   const { metadata } = data;
   const generatedAt = formatDate(metadata.generatedAt, metadata.locale);
 
+  // Use custom footer text if provided, else default attribution
+  const footerContent = branding?.footerText
+    ? branding.footerText // Pre-sanitized HTML from API
+    : `<p>${labels.generatedBy}</p>`;
+
   return `
     <div class="footer">
-      <p>${labels.generatedBy}</p>
+      ${footerContent}
       <p>${labels.generatedAt}: ${generatedAt}</p>
     </div>
   `;
@@ -371,26 +419,28 @@ function escapeHtml(str: string): string {
  *
  * @param data - Report data payload
  * @param labels - Localized labels
+ * @param branding - Optional client branding for white-label reports
  * @returns Full HTML document string
  */
 export function renderReportToHTML(
   data: ReportRenderData,
   labels: ReportLabels,
+  branding?: ReportBranding,
 ): string {
   const html = `<!DOCTYPE html>
 <html lang="${data.metadata.locale}">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>${labels.title} - ${data.metadata.clientName}</title>
+  <title>${labels.title} - ${escapeHtml(data.metadata.clientName)}</title>
   <style>${getStyles()}</style>
 </head>
 <body>
   <div class="report-container">
-    ${renderHeader(data, labels)}
+    ${renderHeader(data, labels, branding)}
     ${renderStats(data, labels)}
     ${renderQueriesTable(data, labels)}
-    ${renderFooter(data, labels)}
+    ${renderFooter(data, labels, branding)}
   </div>
 </body>
 </html>`;

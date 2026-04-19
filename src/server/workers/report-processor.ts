@@ -22,6 +22,7 @@ import {
   gscQuerySnapshots,
   ga4Snapshots,
   reportSchedules,
+  clientBranding,
 } from "@/db/schema";
 import { eq, and, gte, lte, desc } from "drizzle-orm";
 import { generatePDF } from "@/server/services/report/pdf-generator";
@@ -29,6 +30,7 @@ import {
   renderReportToHTML,
   type ReportRenderData,
   type ReportLabels,
+  type ReportBranding,
 } from "@/server/services/report/report-renderer";
 import { writeFile, mkdir } from "node:fs/promises";
 import path from "node:path";
@@ -112,6 +114,26 @@ export default async function processReportJob(
     // For now, we use a placeholder - will be wired when internal API is ready
     const clientName = await getClientName(clientId);
 
+    // Step 3b: Fetch client branding for white-label reports (Phase 16)
+    const brandingData = await db.query.clientBranding.findFirst({
+      where: eq(clientBranding.clientId, clientId),
+    });
+
+    // Build branding object (null values mean use Tevero defaults)
+    const branding = brandingData
+      ? {
+          logoUrl: brandingData.logoUrl,
+          primaryColor: brandingData.primaryColor,
+          secondaryColor: brandingData.secondaryColor,
+          footerText: brandingData.footerText,
+        }
+      : undefined;
+
+    logger.info("Branding fetched", {
+      hasBranding: !!brandingData,
+      hasLogo: !!brandingData?.logoUrl,
+    });
+
     // Step 4: Build report data
     const reportData: ReportRenderData = {
       metadata: {
@@ -152,8 +174,8 @@ export default async function processReportJob(
     // Step 5: Get localized labels
     const labels = getDefaultLabels(locale);
 
-    // Step 6: Render to HTML
-    const html = renderReportToHTML(reportData, labels);
+    // Step 6: Render to HTML with branding
+    const html = renderReportToHTML(reportData, labels, branding);
     logger.info("HTML rendered", { htmlLength: html.length });
 
     // Step 7: Generate PDF
