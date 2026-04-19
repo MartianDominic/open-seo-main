@@ -20,6 +20,9 @@ import {
   type KeywordMode,
   type KeywordSource,
 } from "./selection";
+import { createLogger } from "@/server/lib/logger";
+
+const log = createLogger({ module: "keywords/research" });
 
 type SourceAttempt = {
   source: KeywordSource;
@@ -237,7 +240,7 @@ function persistRows(input: ResearchKeywordsInput, rows: EnrichedKeyword[]) {
       }),
     ),
   ).catch((error) => {
-    console.error("keywords.research.persist-metrics failed:", error);
+    log.error("Persist metrics failed", error instanceof Error ? error : new Error(String(error)));
   });
 }
 

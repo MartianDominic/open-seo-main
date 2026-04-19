@@ -20,7 +20,10 @@ import {
   responseSchema,
 } from "@/server/lib/dataforseoBacklinksSupport";
 import { classifyBacklinksErrorWithAccountState } from "@/server/lib/dataforseoBacklinksAccount";
+import { createLogger } from "@/server/lib/logger";
 export { normalizeBacklinksTarget } from "@/server/lib/dataforseoBacklinksTarget";
+
+const log = createLogger({ module: "dataforseo-backlinks" });
 
 const API_BASE = "https://api.dataforseo.com";
 
@@ -92,10 +95,10 @@ async function postBacklinks(path: string, payload: unknown) {
       path,
     );
     if (classifiedError) throw classifiedError;
-    console.error(
-      `dataforseo.${path}.non-json-response`,
-      rawText.slice(0, 800),
-    );
+    log.error("Non-JSON response from DataForSEO", undefined, {
+      path,
+      responsePreview: rawText.slice(0, 800),
+    });
     throw new AppError(
       "INTERNAL_ERROR",
       `DataForSEO ${path} returned a non-JSON response`,
@@ -110,10 +113,10 @@ async function postBacklinks(path: string, payload: unknown) {
       path,
     );
     if (classifiedError) throw classifiedError;
-    console.error(
-      `dataforseo.${path}.invalid-top-level-shape`,
-      rawText.slice(0, 800),
-    );
+    log.error("Invalid top-level shape from DataForSEO", undefined, {
+      path,
+      responsePreview: rawText.slice(0, 800),
+    });
     throw new AppError(
       "INTERNAL_ERROR",
       `DataForSEO ${path} returned an invalid response shape`,

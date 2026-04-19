@@ -1,4 +1,7 @@
 import { PostHog } from "posthog-node";
+import { createLogger } from "@/server/lib/logger";
+
+const log = createLogger({ module: "posthog" });
 
 /** Returns a one-shot PostHog client, or null if the key is missing. Caller must shut down after use. */
 function getServerPostHogClient(): PostHog | null {
@@ -26,7 +29,7 @@ export async function captureServerError(
       ...properties,
     });
   } catch (posthogError) {
-    console.error("posthog server capture failed", posthogError);
+    log.error("Server capture failed", posthogError instanceof Error ? posthogError : new Error(String(posthogError)));
   } finally {
     await client.shutdown().catch(() => {});
   }
@@ -51,7 +54,7 @@ export async function captureServerEvent(args: {
       },
     });
   } catch (posthogError) {
-    console.error("posthog server capture failed", posthogError);
+    log.error("Server capture failed", posthogError instanceof Error ? posthogError : new Error(String(posthogError)));
   } finally {
     await client.shutdown().catch(() => {});
   }

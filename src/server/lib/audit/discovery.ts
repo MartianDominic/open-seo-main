@@ -4,6 +4,9 @@
 import robotsParser from "robots-parser";
 import { XMLParser } from "fast-xml-parser";
 import { isSameOrigin, normalizeUrl } from "./url-utils";
+import { createLogger } from "@/server/lib/logger";
+
+const log = createLogger({ module: "discovery" });
 
 const SITEMAP_FETCH_TIMEOUT_MS = 15_000;
 const MAX_SITEMAP_DEPTH = 3;
@@ -49,7 +52,7 @@ export async function fetchRobotsTxt(origin: string): Promise<RobotsResult> {
       sitemapUrls: robots.getSitemaps(),
     };
   } catch (error) {
-    console.warn("Failed to fetch robots.txt:", error);
+    log.warn("Failed to fetch robots.txt", { error: error instanceof Error ? error.message : String(error) });
     return {
       isAllowed: () => true,
       sitemapUrls: [],
@@ -261,9 +264,13 @@ export async function discoverUrls(
   }
 
   if (failedDocs > 0) {
-    console.warn(
-      `Sitemap discovery completed with partial failures for ${origin}: fetched=${fetchedDocs}, failed=${failedDocs}, timedOut=${timedOutDocs}, discoveredUrls=${allUrls.size}`,
-    );
+    log.warn("Sitemap discovery completed with partial failures", {
+      origin,
+      fetched: fetchedDocs,
+      failed: failedDocs,
+      timedOut: timedOutDocs,
+      discoveredUrls: allUrls.size,
+    });
   }
 
   return {

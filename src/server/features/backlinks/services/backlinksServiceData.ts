@@ -21,6 +21,9 @@ import {
   type BacklinksOverviewResult,
 } from "@/server/features/backlinks/services/backlinksOverviewSchema";
 import type { BacklinksLookupInput } from "@/types/schemas/backlinks";
+import { createLogger } from "@/server/lib/logger";
+
+const log = createLogger({ module: "backlinks/serviceData" });
 
 const BACKLINKS_OVERVIEW_TTL_SECONDS = 6 * 60 * 60;
 const BACKLINKS_TAB_TTL_SECONDS = 6 * 60 * 60;
@@ -338,6 +341,6 @@ async function cacheValue(
   ttlSeconds: number,
 ) {
   await cache.set(key, data, ttlSeconds).catch((error: unknown) => {
-    console.error("backlinks.cache-write failed:", error);
+    log.error("Cache write failed", error instanceof Error ? error : new Error(String(error)));
   });
 }

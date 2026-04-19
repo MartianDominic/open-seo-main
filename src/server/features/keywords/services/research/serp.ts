@@ -5,6 +5,9 @@ import { z } from "zod";
 import type { BillingCustomerContext } from "@/server/billing/subscription";
 import { createDataforseoClient } from "@/server/lib/dataforseoClient";
 import { normalizeKeyword } from "./helpers";
+import { createLogger } from "@/server/lib/logger";
+
+const log = createLogger({ module: "keywords/serp" });
 
 const SERP_CACHE_TTL_SECONDS = 12 * 60 * 60;
 
@@ -92,7 +95,7 @@ async function getSerpLiveAnalysis(
   }
 
   void setCached(cacheKey, result, SERP_CACHE_TTL_SECONDS).catch((error) => {
-    console.error("keywords.serp.cache-write failed:", error);
+    log.error("Cache write failed", error instanceof Error ? error : new Error(String(error)));
   });
 
   return result;

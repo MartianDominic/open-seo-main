@@ -3,6 +3,9 @@ import { getRequest } from "@tanstack/react-start/server";
 import { shouldCaptureAppErrorCode } from "@/shared/error-codes";
 import { asAppError, toClientError } from "@/server/lib/errors";
 import { captureServerError } from "@/server/lib/posthog";
+import { createLogger } from "@/server/lib/logger";
+
+const log = createLogger({ module: "error-handling" });
 
 export const errorHandlingMiddleware = createMiddleware({
   type: "function",
@@ -22,13 +25,17 @@ export const errorHandlingMiddleware = createMiddleware({
       const request = getRequest();
       const url = new URL(request.url);
 
-      console.error("server.function error:", error);
+      log.error("Server function error", error, {
+        errorCode: appError?.code ?? "INTERNAL_ERROR",
+        method: request.method,
+        path: url.pathname,
+      });
       void captureServerError(error, {
         errorCode: appError?.code ?? "INTERNAL_ERROR",
         method: request.method,
         path: url.pathname,
       }).catch((err) => {
-        console.error("posthog captureServerError failed:", err);
+        log.error("PostHog captureServerError failed", err instanceof Error ? err : new Error(String(err)));
       });
     }
 

@@ -8,6 +8,20 @@
 const AIWRITER_INTERNAL_URL =
   process.env.AIWRITER_INTERNAL_URL || "http://localhost:8000";
 const INTERNAL_API_KEY = process.env.INTERNAL_API_KEY;
+const FETCH_TIMEOUT_MS = 30000;
+
+async function fetchWithTimeout(
+  url: string,
+  options: RequestInit = {},
+): Promise<Response> {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
+  try {
+    return await fetch(url, { ...options, signal: controller.signal });
+  } finally {
+    clearTimeout(timeout);
+  }
+}
 
 export interface TokenResponse {
   access_token: string;
@@ -32,7 +46,7 @@ export async function getClientToken(
     throw new Error("INTERNAL_API_KEY environment variable not set");
   }
 
-  const res = await fetch(
+  const res = await fetchWithTimeout(
     `${AIWRITER_INTERNAL_URL}/internal/tokens/${clientId}/${provider}`,
     {
       headers: {
@@ -60,7 +74,7 @@ export async function updateClientToken(
     throw new Error("INTERNAL_API_KEY environment variable not set");
   }
 
-  const res = await fetch(
+  const res = await fetchWithTimeout(
     `${AIWRITER_INTERNAL_URL}/internal/tokens/${clientId}/${provider}`,
     {
       method: "PUT",
@@ -85,7 +99,7 @@ export async function markTokenInactive(
     throw new Error("INTERNAL_API_KEY environment variable not set");
   }
 
-  const res = await fetch(
+  const res = await fetchWithTimeout(
     `${AIWRITER_INTERNAL_URL}/internal/tokens/${clientId}/${provider}/deactivate`,
     {
       method: "POST",

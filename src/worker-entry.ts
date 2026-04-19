@@ -7,21 +7,24 @@ import { validateEnv, REQUIRED_ENV_CORE } from "@/server/lib/runtime-env";
 import { startAuditWorker, stopAuditWorker } from "@/server/workers/audit-worker";
 import { closeRedis } from "@/server/lib/redis";
 import { pool } from "@/db";
+import { createLogger } from "@/server/lib/logger";
+
+const log = createLogger({ module: "worker-entry" });
 
 validateEnv(REQUIRED_ENV_CORE);
 
 startAuditWorker();
-console.log("[worker-entry] audit worker started");
+log.info("Audit worker started");
 
 let shuttingDown = false;
 async function shutdown(signal: string): Promise<void> {
   if (shuttingDown) return;
   shuttingDown = true;
-  console.log(`[worker-entry] ${signal} received — shutting down`);
-  try { await stopAuditWorker(); } catch (err) { console.error("[worker-entry] stopAuditWorker failed:", err); }
-  try { await closeRedis(); } catch (err) { console.error("[worker-entry] closeRedis failed:", err); }
-  try { await pool.end(); } catch (err) { console.error("[worker-entry] pool.end failed:", err); }
-  console.log("[worker-entry] shutdown complete");
+  log.info("Shutdown signal received", { signal });
+  try { await stopAuditWorker(); } catch (err) { log.error("stopAuditWorker failed", err instanceof Error ? err : new Error(String(err))); }
+  try { await closeRedis(); } catch (err) { log.error("closeRedis failed", err instanceof Error ? err : new Error(String(err))); }
+  try { await pool.end(); } catch (err) { log.error("pool.end failed", err instanceof Error ? err : new Error(String(err))); }
+  log.info("Shutdown complete");
   process.exit(0);
 }
 

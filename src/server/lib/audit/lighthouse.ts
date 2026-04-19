@@ -3,6 +3,9 @@ import type { BillingCustomerContext } from "@/server/billing/subscription";
 import { createDataforseoClient } from "@/server/lib/dataforseoClient";
 import type { LighthouseResult, LighthouseStrategy } from "./types";
 import { putTextToR2 } from "@/server/lib/r2";
+import { createLogger } from "@/server/lib/logger";
+
+const log = createLogger({ module: "lighthouse" });
 
 interface LighthouseSamplePage {
   url: string;
@@ -52,18 +55,16 @@ async function fetchLighthouseResult(
       };
     } catch (error) {
       lastError = error instanceof Error ? error : new Error(String(error));
-      console.warn(
-        `Lighthouse attempt ${attempt + 1} failed for ${url}:`,
-        lastError.message,
-      );
+      log.warn("Lighthouse attempt failed", {
+        attempt: attempt + 1,
+        url,
+        error: lastError.message,
+      });
     }
   }
 
   // All retries exhausted — return null scores
-  console.error(
-    `Lighthouse failed after 3 attempts for ${url}:`,
-    lastError?.message,
-  );
+  log.error("Lighthouse failed after all attempts", lastError ?? undefined, { url, attempts: 3 });
   return {
     result: {
       url,

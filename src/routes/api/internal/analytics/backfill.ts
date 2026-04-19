@@ -9,6 +9,9 @@
  */
 import { createFileRoute } from "@tanstack/react-router";
 import { queueBackfillJob } from "@/server/queues/analyticsQueue";
+import { createLogger } from "@/server/lib/logger";
+
+const log = createLogger({ module: "api/internal/analytics/backfill" });
 
 const INTERNAL_API_KEY = process.env.INTERNAL_API_KEY;
 
@@ -18,7 +21,7 @@ const INTERNAL_API_KEY = process.env.INTERNAL_API_KEY;
 function verifyInternalApiKey(request: Request): boolean {
   const apiKey = request.headers.get("X-Internal-Api-Key");
   if (!INTERNAL_API_KEY) {
-    console.error("[internal] INTERNAL_API_KEY not configured");
+    log.error("INTERNAL_API_KEY not configured");
     return false;
   }
   return apiKey === INTERNAL_API_KEY;
@@ -66,16 +69,14 @@ export const Route = createFileRoute("/api/internal/analytics/backfill" as any)(
           // Queue the backfill job
           await queueBackfillJob(clientId);
 
-          console.log(
-            `[internal/analytics/backfill] Queued backfill for client ${clientId}`,
-          );
+          log.info("Queued backfill", { clientId });
 
           return Response.json(
             { status: "queued", clientId },
             { status: 202, headers: { "Content-Type": "application/json" } },
           );
         } catch (err) {
-          console.error("[internal/analytics/backfill] Failed to queue:", err);
+          log.error("Failed to queue backfill", err instanceof Error ? err : new Error(String(err)));
           return Response.json(
             { error: "Failed to queue backfill" },
             { status: 500, headers: { "Content-Type": "application/json" } },

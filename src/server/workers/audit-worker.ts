@@ -2,7 +2,7 @@
  * BullMQ Worker for site audits.
  *
  * Wires:
- *   - Dedicated Redis connection (BQ-03) via createRedisConnection()
+ *   - Shared Redis connection via getSharedBullMQConnection() to prevent leaks
  *   - lockDuration: 120_000 (BQ-05)
  *   - maxStalledCount: 2 (BQ-06)
  *   - Sandboxed processor via file path (BQ-04) — audit-processor.ts runs in child process
@@ -12,13 +12,16 @@
  */
 import { Worker, type Job } from "bullmq";
 import { fileURLToPath } from "node:url";
-import { createRedisConnection } from "@/server/lib/redis";
+import { getSharedBullMQConnection } from "@/server/lib/redis";
+import { createLogger } from "@/server/lib/logger";
 import {
   AUDIT_QUEUE_NAME,
   failedAuditsQueue,
   type AuditJobData,
   type FailedAuditJobData,
 } from "@/server/queues/auditQueue";
+
+const workerLog = createLogger({ module: "audit-worker" });
 
 const LOCK_DURATION_MS = 120_000; // BQ-05
 const MAX_STALLED_COUNT = 2; // BQ-06
@@ -39,7 +42,7 @@ export function startAuditWorker(): Worker<AuditJobData> {
     AUDIT_QUEUE_NAME,
     PROCESSOR_PATH, // Sandboxed processor — runs in child process (BQ-04)
     {
-      connection: createRedisConnection(), // Dedicated connection (BQ-03)
+      connection: getSharedBullMQConnection("worker:audit"), // Shared connection (prevents leaks)
       lockDuration: LOCK_DURATION_MS, // BQ-05
       maxStalledCount: MAX_STALLED_COUNT, // BQ-06
       concurrency: 2,
@@ -47,25 +50,23 @@ export function startAuditWorker(): Worker<AuditJobData> {
   );
 
   worker.on("ready", () => {
-    console.log(`[audit-worker] ready — consuming ${AUDIT_QUEUE_NAME}`);
+    workerLog.info("Worker ready", { queue: AUDIT_QUEUE_NAME });
   });
 
   worker.on("error", (err) => {
-    console.error("[audit-worker] error:", err);
+    workerLog.error("Worker error", err instanceof Error ? err : new Error(String(err)));
   });
 
   worker.on(
     "failed",
     async (job: Job<AuditJobData> | undefined, err: Error) => {
       if (!job) {
-        console.error("[audit-worker] failed with no job context:", err);
+        workerLog.error("Job failed with no job context", err);
         return;
       }
       const maxAttempts = job.opts.attempts ?? 1;
-      console.error(
-        `[audit-worker] job ${job.id} failed (attempt ${job.attemptsMade}/${maxAttempts}):`,
-        err.message,
-      );
+      const jobLog = createLogger({ module: "audit-worker", jobId: job.id, auditId: job.data.auditId });
+      jobLog.error("Job failed", err, { attempt: job.attemptsMade, maxAttempts });
       // Only enqueue DLQ when retries are exhausted (BQ-07)
       if (job.attemptsMade >= maxAttempts) {
         const dlqPayload: FailedAuditJobData = {
@@ -79,14 +80,15 @@ export function startAuditWorker(): Worker<AuditJobData> {
         try {
           await failedAuditsQueue.add(`dlq-${job.data.auditId}`, dlqPayload);
         } catch (dlqErr) {
-          console.error("[audit-worker] failed to enqueue DLQ job:", dlqErr);
+          jobLog.error("Failed to enqueue DLQ job", dlqErr instanceof Error ? dlqErr : new Error(String(dlqErr)));
         }
       }
     },
   );
 
   worker.on("completed", (job) => {
-    console.log(`[audit-worker] job ${job.id} completed`);
+    const jobLog = createLogger({ module: "audit-worker", jobId: job.id, auditId: job.data.auditId });
+    jobLog.info("Job completed");
   });
 
   return worker;
@@ -102,9 +104,7 @@ export async function stopAuditWorker(): Promise<void> {
   const closed = current.close().then(() => "closed" as const);
   const result = await Promise.race([closed, timeout]);
   if (result === "timeout") {
-    console.error(
-      `[audit-worker] graceful shutdown exceeded ${SHUTDOWN_TIMEOUT_MS}ms — forcing close`,
-    );
+    workerLog.error("Graceful shutdown timeout exceeded, forcing close", undefined, { timeoutMs: SHUTDOWN_TIMEOUT_MS });
     await current.close(true); // force
   }
 }

@@ -4,9 +4,11 @@
  */
 import { createFileRoute } from "@tanstack/react-router";
 import { ProjectService } from "@/server/features/projects/services/ProjectService";
-import { resolveClientId } from "@/server/lib/client-context";
 import { AppError } from "@/server/lib/errors";
 import { requireApiAuth } from "@/routes/api/seo/-middleware";
+import { createLogger } from "@/server/lib/logger";
+
+const log = createLogger({ module: "api/seo/projects" });
 
 export const Route = createFileRoute("/api/seo/projects")({
   server: {
@@ -15,8 +17,7 @@ export const Route = createFileRoute("/api/seo/projects")({
       GET: async ({ request }: { request: Request }) => {
         try {
           const auth = await requireApiAuth(request);
-          const clientId = await resolveClientId(request.headers, request.url);
-
+          // Note: resolveClientId validation happens in requireApiAuth
           // Get or create default project for this organization
           const project = await ProjectService.getOrCreateDefaultProject(auth.organizationId);
           return Response.json(project);
@@ -25,7 +26,7 @@ export const Route = createFileRoute("/api/seo/projects")({
             const status = error.code === "NOT_FOUND" ? 404 : error.code === "FORBIDDEN" ? 403 : 400;
             return Response.json({ error: error.message }, { status });
           }
-          console.error("[api/seo/projects] GET error:", error);
+          log.error("GET error", error instanceof Error ? error : new Error(String(error)));
           return Response.json({ error: "Internal server error" }, { status: 500 });
         }
       },

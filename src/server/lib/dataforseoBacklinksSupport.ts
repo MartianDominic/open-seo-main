@@ -1,5 +1,8 @@
 import { z } from "zod";
 import { AppError } from "@/server/lib/errors";
+import { createLogger } from "@/server/lib/logger";
+
+const log = createLogger({ module: "dataforseo-backlinks" });
 
 const taskResultSchema = z
   .object({
@@ -210,16 +213,16 @@ export function parseItems<T extends z.ZodTypeAny>(
 ): Array<z.infer<T>> {
   const firstResult = results[0] ?? null;
   if (firstResult == null) {
-    console.warn(`dataforseo.${endpointName}.empty-result`);
+    log.warn("Empty result from DataForSEO", { endpoint: endpointName });
     throw new AppError("VALIDATION_ERROR", "Backlinks target is invalid");
   }
 
   const parsed = z.array(itemSchema).safeParse(firstResult.items ?? []);
   if (!parsed.success) {
-    console.error(
-      `dataforseo.${endpointName}.invalid-items`,
-      parsed.error.issues.slice(0, 5),
-    );
+    log.error("Invalid items from DataForSEO", undefined, {
+      endpoint: endpointName,
+      issues: parsed.error.issues.slice(0, 5),
+    });
     throw new AppError(
       "INTERNAL_ERROR",
       `DataForSEO ${endpointName} returned an invalid response shape`,
@@ -236,16 +239,16 @@ export function parseFirstResult<T extends z.ZodTypeAny>(
 ): z.infer<T> {
   const firstResult = results[0] ?? null;
   if (firstResult == null) {
-    console.warn(`dataforseo.${endpointName}.empty-result`);
+    log.warn("Empty result from DataForSEO", { endpoint: endpointName });
     throw new AppError("VALIDATION_ERROR", "Backlinks target is invalid");
   }
 
   const parsed = resultSchema.safeParse(firstResult);
   if (!parsed.success) {
-    console.error(
-      `dataforseo.${endpointName}.invalid-result`,
-      parsed.error.issues.slice(0, 5),
-    );
+    log.error("Invalid result from DataForSEO", undefined, {
+      endpoint: endpointName,
+      issues: parsed.error.issues.slice(0, 5),
+    });
     throw new AppError(
       "INTERNAL_ERROR",
       `DataForSEO ${endpointName} returned an invalid response shape`,

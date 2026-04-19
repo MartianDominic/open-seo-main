@@ -19,6 +19,9 @@ import {
   markTokenInactive,
   type TokenResponse,
 } from "@/server/lib/aiwriter-api";
+import { createLogger } from "@/server/lib/logger";
+
+const log = createLogger({ module: "google-auth" });
 
 const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID;
 const GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET;
@@ -56,15 +59,11 @@ export async function getValidCredentials(
 
   // Check if refresh needed (token expires within 1 hour)
   if (tokenExpiry && tokenExpiry <= oneHourFromNow) {
-    console.log(
-      `[google-auth] Token expiring soon for client ${clientId}, refreshing...`,
-    );
+    log.info("Token expiring soon, refreshing", { clientId });
 
     if (!token.refresh_token) {
       // No refresh token - mark inactive and throw
-      console.error(
-        `[google-auth] No refresh token for client ${clientId}, marking inactive`,
-      );
+      log.error("No refresh token, marking inactive", undefined, { clientId });
       await markTokenInactive(clientId, "google");
       throw new Error(`No refresh token for client ${clientId}`);
     }
@@ -82,7 +81,7 @@ export async function getValidCredentials(
         token_expiry: refreshedToken.expiryDate?.toISOString(),
       });
 
-      console.log(`[google-auth] Token refreshed for client ${clientId}`);
+      log.info("Token refreshed", { clientId });
 
       return {
         accessToken: refreshedToken.accessToken,
@@ -91,10 +90,7 @@ export async function getValidCredentials(
       };
     } catch (err) {
       // Refresh failed - mark inactive and throw
-      console.error(
-        `[google-auth] Token refresh failed for client ${clientId}:`,
-        err,
-      );
+      log.error("Token refresh failed", err instanceof Error ? err : new Error(String(err)), { clientId });
       await markTokenInactive(clientId, "google");
       throw new Error(`Token refresh failed for client ${clientId}: ${err}`);
     }

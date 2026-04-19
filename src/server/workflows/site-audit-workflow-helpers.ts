@@ -1,6 +1,9 @@
 import { analyzeHtml } from "@/server/lib/audit/page-analyzer";
 import type { StepPageResult } from "@/server/lib/audit/types";
 import { isSameOrigin, normalizeUrl } from "@/server/lib/audit/url-utils";
+import { createLogger } from "@/server/lib/logger";
+
+const log = createLogger({ module: "site-audit-workflow" });
 
 export async function crawlPage(
   url: string,
@@ -81,7 +84,7 @@ export async function crawlPage(
     };
   } catch (error) {
     const responseTimeMs = Date.now() - startTime;
-    console.warn(`Failed to crawl ${url}:`, error);
+    log.warn("Failed to crawl URL", { url, error: error instanceof Error ? error.message : String(error) });
     return emptyPageResult(url, 0, null, responseTimeMs);
   }
 }

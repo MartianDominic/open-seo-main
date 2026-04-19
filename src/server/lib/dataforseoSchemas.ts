@@ -1,5 +1,8 @@
 import { z } from "zod";
 import { AppError } from "@/server/lib/errors";
+import { createLogger } from "@/server/lib/logger";
+
+const log = createLogger({ module: "dataforseo-schemas" });
 
 const dataforseoTaskSchema = z
   .object({
@@ -204,10 +207,10 @@ export function parseTaskItems<T extends z.ZodType>(
 ): z.infer<T>[] {
   const parsed = z.array(itemSchema).safeParse(task.result?.[0]?.items ?? []);
   if (!parsed.success) {
-    console.error(
-      `dataforseo.${endpointName}.invalid-payload`,
-      parsed.error.issues.slice(0, 5),
-    );
+    log.error("Invalid payload from DataForSEO", undefined, {
+      endpoint: endpointName,
+      issues: parsed.error.issues.slice(0, 5),
+    });
     throw new AppError(
       "INTERNAL_ERROR",
       `DataForSEO ${endpointName} returned an invalid response shape`,

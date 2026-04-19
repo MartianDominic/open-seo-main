@@ -1,4 +1,7 @@
 import { getRequiredEnvValue } from "@/server/lib/runtime-env";
+import { createLogger } from "@/server/lib/logger";
+
+const log = createLogger({ module: "loops" });
 
 const LOOPS_TRANSACTIONAL_URL = "https://app.loops.so/api/v1/transactional";
 
@@ -44,7 +47,7 @@ async function sendLoopsTransactionalEmail({
   }
 
   const errorPayload = await response.json().catch(() => null);
-  console.error("Loops transactional email error:", {
+  log.error("Transactional email error", undefined, {
     status: response.status,
     email,
     transactionalId,

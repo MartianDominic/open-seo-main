@@ -5,6 +5,9 @@ import { z } from "zod";
 import type { BillingCustomerContext } from "@/server/billing/subscription";
 import { createDataforseoClient } from "@/server/lib/dataforseoClient";
 import { normalizeDomainInput, toRelativePath } from "@/server/lib/domainUtils";
+import { createLogger } from "@/server/lib/logger";
+
+const log = createLogger({ module: "DomainService" });
 
 /** Domain overview data is refreshed every 12 hours. */
 const DOMAIN_OVERVIEW_TTL_SECONDS = 12 * 60 * 60;
@@ -149,7 +152,7 @@ async function getOverview(
   if (result.hasData) {
     void setCached(cacheKey, result, DOMAIN_OVERVIEW_TTL_SECONDS).catch(
       (error) => {
-        console.error("domain.overview.cache-write failed:", error);
+        log.error("Cache write failed", error instanceof Error ? error : new Error(String(error)));
       },
     );
   }

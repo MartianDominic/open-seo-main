@@ -8,6 +8,9 @@ import { resolveClientId } from "@/server/lib/client-context";
 import { AppError } from "@/server/lib/errors";
 import { backlinksOverviewInputSchema } from "@/types/schemas/backlinks";
 import { requireApiAuth } from "@/routes/api/seo/-middleware";
+import { createLogger } from "@/server/lib/logger";
+
+const log = createLogger({ module: "api/seo/backlinks" });
 
 async function getProjectContext(request: Request) {
   const auth = await requireApiAuth(request);
@@ -64,7 +67,7 @@ export const Route = createFileRoute("/api/seo/backlinks")({
             const status = error.code === "NOT_FOUND" ? 404 : error.code === "FORBIDDEN" ? 403 : 400;
             return Response.json({ error: error.message }, { status });
           }
-          console.error("[api/seo/backlinks] POST error:", error);
+          log.error("POST error", error instanceof Error ? error : new Error(String(error)));
           return Response.json({ error: "Internal server error" }, { status: 500 });
         }
       },

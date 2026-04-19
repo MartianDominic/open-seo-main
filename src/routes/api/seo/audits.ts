@@ -12,6 +12,9 @@ import {
   startAuditSchema,
 } from "@/types/schemas/audit";
 import { requireApiAuth } from "@/routes/api/seo/-middleware";
+import { createLogger } from "@/server/lib/logger";
+
+const log = createLogger({ module: "api/seo/audits" });
 
 // Helper to extract project context from request
 async function getProjectContext(request: Request) {
@@ -65,7 +68,7 @@ export const Route = createFileRoute("/api/seo/audits")({
             const status = error.code === "NOT_FOUND" ? 404 : error.code === "FORBIDDEN" ? 403 : 400;
             return Response.json({ error: error.message }, { status });
           }
-          console.error("[api/seo/audits] GET error:", error);
+          log.error("GET error", error instanceof Error ? error : new Error(String(error)));
           return Response.json({ error: "Internal server error" }, { status: 500 });
         }
       },
@@ -112,7 +115,7 @@ export const Route = createFileRoute("/api/seo/audits")({
             const status = error.code === "NOT_FOUND" ? 404 : error.code === "FORBIDDEN" ? 403 : 400;
             return Response.json({ error: error.message }, { status });
           }
-          console.error("[api/seo/audits] POST error:", error);
+          log.error("POST error", error instanceof Error ? error : new Error(String(error)));
           return Response.json({ error: "Internal server error" }, { status: 500 });
         }
       },

@@ -10,18 +10,52 @@
  */
 
 import { Queue, type JobsOptions } from "bullmq";
-import { createRedisConnection } from "@/server/lib/redis";
+import { getSharedBullMQConnection } from "@/server/lib/redis";
+import { createLogger } from "@/server/lib/logger";
+
+const log = createLogger({ module: "analyticsQueue" });
 
 export const ANALYTICS_QUEUE_NAME = "analytics-sync" as const;
+
+/**
+ * Sync stage for checkpoint-based progress tracking.
+ * Stages are processed in order: gsc -> queries -> ga4 -> complete
+ */
+export type SyncStage = "gsc" | "queries" | "ga4" | "complete";
+
+/**
+ * Progress checkpoint for resumable job processing.
+ * Stored in job data so jobs can resume from last successful chunk on retry.
+ */
+export interface SyncProgress {
+  stage: SyncStage;
+  chunksCompleted: number;
+}
 
 export interface AnalyticsSyncJobData {
   clientId: string;
   provider: "google";
   mode: "incremental" | "backfill";
+  /** Checkpoint for resuming from last successful chunk on retry */
+  progress?: SyncProgress;
 }
 
 export interface SyncAllClientsJobData {
   mode: "incremental" | "backfill";
+}
+
+/**
+ * Dead-letter queue job data for failed analytics sync jobs.
+ * Jobs moved here after exhausting all retry attempts for manual inspection.
+ */
+export interface AnalyticsDLQJobData {
+  originalJobId: string | undefined;
+  originalJobName: string;
+  data: AnalyticsSyncJobData | SyncAllClientsJobData;
+  error: string;
+  stack: string | undefined;
+  failedAt: string;
+  attemptsMade: number;
 }
 
 const DEFAULT_JOB_OPTIONS: JobsOptions = {
@@ -35,9 +69,9 @@ const DEFAULT_JOB_OPTIONS: JobsOptions = {
 };
 
 export const analyticsQueue = new Queue<
-  AnalyticsSyncJobData | SyncAllClientsJobData
+  AnalyticsSyncJobData | SyncAllClientsJobData | AnalyticsDLQJobData
 >(ANALYTICS_QUEUE_NAME, {
-  connection: createRedisConnection(),
+  connection: getSharedBullMQConnection("queue:analytics"),
   defaultJobOptions: DEFAULT_JOB_OPTIONS,
 });
 
@@ -59,7 +93,7 @@ export async function initAnalyticsScheduler(): Promise<void> {
       },
     },
   );
-  console.log("[analyticsQueue] Nightly scheduler initialized (02:00 UTC)");
+  log.info("Nightly scheduler initialized", { schedule: "02:00 UTC" });
 }
 
 /**
@@ -80,5 +114,5 @@ export async function queueBackfillJob(clientId: string): Promise<void> {
       backoff: { type: "exponential", delay: 10_000 },
     },
   );
-  console.log(`[analyticsQueue] Backfill job queued for client ${clientId}`);
+  log.info("Backfill job queued", { clientId });
 }

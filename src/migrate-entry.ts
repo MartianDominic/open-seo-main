@@ -5,23 +5,26 @@
 import pg from "pg";
 import { drizzle } from "drizzle-orm/node-postgres";
 import { migrate } from "drizzle-orm/node-postgres/migrator";
+import { createLogger } from "@/server/lib/logger";
+
+const log = createLogger({ module: "migrate" });
 
 async function main(): Promise<void> {
   const connectionString = process.env.DATABASE_URL;
   if (!connectionString) {
-    console.error("[migrate] DATABASE_URL is required");
+    log.error("DATABASE_URL is required");
     process.exit(1);
   }
 
   const pool = new pg.Pool({ connectionString });
   const db = drizzle(pool);
 
-  console.log("[migrate] applying migrations from ./drizzle ...");
+  log.info("Applying migrations from ./drizzle");
   try {
     await migrate(db, { migrationsFolder: "./drizzle" });
-    console.log("[migrate] migrations applied successfully");
+    log.info("Migrations applied successfully");
   } catch (err) {
-    console.error("[migrate] migration failed:", err);
+    log.error("Migration failed", err instanceof Error ? err : new Error(String(err)));
     await pool.end();
     process.exit(1);
   }

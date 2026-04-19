@@ -4,14 +4,14 @@
  * - `auditQueue` — primary queue for site audit jobs
  * - `failedAuditsQueue` — dead-letter queue for terminally failed audit jobs
  *
- * Each Queue gets its own Redis connection via createRedisConnection() per
- * BullMQ requirements (BQ-03). Workers are defined separately in plan 03.
+ * Each Queue gets its own shared Redis connection via getSharedBullMQConnection()
+ * to prevent connection leaks. Workers are defined separately in audit-worker.ts.
  */
 
 import { Queue, type JobsOptions } from "bullmq";
 import type { AuditConfig } from "@/server/lib/audit/types";
 import type { BillingCustomerContext } from "@/server/billing/subscription";
-import { createRedisConnection } from "@/server/lib/redis";
+import { getSharedBullMQConnection } from "@/server/lib/redis";
 
 export const AUDIT_QUEUE_NAME = "audit-queue" as const;
 export const FAILED_AUDITS_QUEUE_NAME = "failed-audits" as const;
@@ -64,14 +64,14 @@ const DEFAULT_JOB_OPTIONS: JobsOptions = {
 };
 
 export const auditQueue = new Queue<AuditJobData>(AUDIT_QUEUE_NAME, {
-  connection: createRedisConnection(),
+  connection: getSharedBullMQConnection("queue:audit"),
   defaultJobOptions: DEFAULT_JOB_OPTIONS,
 });
 
 export const failedAuditsQueue = new Queue<FailedAuditJobData>(
   FAILED_AUDITS_QUEUE_NAME,
   {
-    connection: createRedisConnection(),
+    connection: getSharedBullMQConnection("queue:failed-audits"),
     defaultJobOptions: {
       attempts: 1,
       removeOnComplete: { count: 1000 },

@@ -3,6 +3,7 @@ import { AuditService } from "@/server/features/audit/services/AuditService";
 import { captureServerEvent } from "@/server/lib/posthog";
 import { requireProjectContext } from "@/serverFunctions/middleware";
 import { AppError } from "@/server/lib/errors";
+import { createLogger } from "@/server/lib/logger";
 import {
   deleteAuditSchema,
   getAuditHistorySchema,
@@ -11,6 +12,8 @@ import {
   getCrawlProgressSchema,
   startAuditSchema,
 } from "@/types/schemas/audit";
+
+const log = createLogger({ module: "serverFunctions/audit" });
 
 export const startAudit = createServerFn({ method: "POST" })
   .middleware(requireProjectContext)
@@ -40,7 +43,7 @@ export const startAudit = createServerFn({ method: "POST" })
         run_lighthouse: data.lighthouseStrategy !== "none",
       },
     }).catch((err) => {
-      console.error("posthog captureServerEvent failed:", err);
+      log.error("PostHog captureServerEvent failed", err instanceof Error ? err : new Error(String(err)));
     });
 
     return result;

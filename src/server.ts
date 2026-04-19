@@ -7,6 +7,9 @@ import {
 } from "@/server/workers/analytics-worker";
 import { closeRedis } from "@/server/lib/redis";
 import { pool } from "@/db";
+import { createLogger } from "@/server/lib/logger";
+
+const log = createLogger({ module: "server" });
 
 // Fail fast on missing required environment variables. Runs once per process.
 validateEnv(REQUIRED_ENV_CORE);
@@ -27,28 +30,28 @@ let shuttingDown = false;
 async function shutdown(signal: string): Promise<void> {
   if (shuttingDown) return;
   shuttingDown = true;
-  console.log(`[server] ${signal} received — shutting down`);
+  log.info("Shutdown signal received", { signal });
   try {
     await stopAuditWorker();
   } catch (err) {
-    console.error("[server] stopAuditWorker failed:", err);
+    log.error("stopAuditWorker failed", err instanceof Error ? err : new Error(String(err)));
   }
   try {
     await stopAnalyticsWorker();
   } catch (err) {
-    console.error("[server] stopAnalyticsWorker failed:", err);
+    log.error("stopAnalyticsWorker failed", err instanceof Error ? err : new Error(String(err)));
   }
   try {
     await closeRedis();
   } catch (err) {
-    console.error("[server] closeRedis failed:", err);
+    log.error("closeRedis failed", err instanceof Error ? err : new Error(String(err)));
   }
   try {
     await pool.end();
   } catch (err) {
-    console.error("[server] pool.end failed:", err);
+    log.error("pool.end failed", err instanceof Error ? err : new Error(String(err)));
   }
-  console.log("[server] shutdown complete");
+  log.info("Shutdown complete");
   process.exit(0);
 }
 
