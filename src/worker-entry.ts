@@ -7,6 +7,7 @@ import { validateEnv, REQUIRED_ENV_CORE } from "@/server/lib/runtime-env";
 import { startAuditWorker, stopAuditWorker } from "@/server/workers/audit-worker";
 import { startReportWorker, stopReportWorker } from "@/server/workers/report-worker";
 import { startScheduleWorker, stopScheduleWorker } from "@/server/workers/schedule-worker";
+import { startRankingWorker, stopRankingWorker } from "@/server/workers/ranking-worker";
 import { closeRedis } from "@/server/lib/redis";
 import { pool } from "@/db";
 import { createLogger } from "@/server/lib/logger";
@@ -24,6 +25,9 @@ log.info("Report worker started");
 startScheduleWorker();
 log.info("Schedule worker started");
 
+startRankingWorker();
+log.info("Ranking worker started");
+
 let shuttingDown = false;
 async function shutdown(signal: string): Promise<void> {
   if (shuttingDown) return;
@@ -32,6 +36,7 @@ async function shutdown(signal: string): Promise<void> {
   try { await stopAuditWorker(); } catch (err) { log.error("stopAuditWorker failed", err instanceof Error ? err : new Error(String(err))); }
   try { await stopReportWorker(); } catch (err) { log.error("stopReportWorker failed", err instanceof Error ? err : new Error(String(err))); }
   try { await stopScheduleWorker(); } catch (err) { log.error("stopScheduleWorker failed", err instanceof Error ? err : new Error(String(err))); }
+  try { await stopRankingWorker(); } catch (err) { log.error("stopRankingWorker failed", err instanceof Error ? err : new Error(String(err))); }
   try { await closeRedis(); } catch (err) { log.error("closeRedis failed", err instanceof Error ? err : new Error(String(err))); }
   try { await pool.end(); } catch (err) { log.error("pool.end failed", err instanceof Error ? err : new Error(String(err))); }
   log.info("Shutdown complete");
