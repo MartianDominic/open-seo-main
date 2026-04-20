@@ -6,6 +6,7 @@ import pg from "pg";
 import { drizzle } from "drizzle-orm/node-postgres";
 import { migrate } from "drizzle-orm/node-postgres/migrator";
 import { createLogger } from "@/server/lib/logger";
+import { seedGoalTemplates } from "@/db/seeds/goal-templates";
 
 const log = createLogger({ module: "migrate" });
 
@@ -27,6 +28,16 @@ async function main(): Promise<void> {
     log.error("Migration failed", err instanceof Error ? err : new Error(String(err)));
     await pool.end();
     process.exit(1);
+  }
+
+  // Seed goal templates after migrations
+  log.info("Seeding goal templates...");
+  try {
+    await seedGoalTemplates();
+    log.info("Goal templates seeded successfully");
+  } catch (err) {
+    log.error("Seed failed", err instanceof Error ? err : new Error(String(err)));
+    // Non-fatal: continue even if seeding fails (templates may already exist)
   }
 
   await pool.end();
