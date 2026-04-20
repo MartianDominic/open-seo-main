@@ -9,3 +9,4 @@ export * from "./rank-events-schema";
 export * from "./alert-schema";
 export * from "./webhook-schema";
 export * from "./dashboard-schema";
+export * from "./goals-schema";

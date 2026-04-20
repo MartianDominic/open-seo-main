@@ -43,6 +43,41 @@
       "when": 1776618200000,
       "tag": "0005_keyword_rankings",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1776620500000,
+      "tag": "0006_rank_drop_events",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1776620800000,
+      "tag": "0007_alerts",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1776621100000,
+      "tag": "0008_webhooks",
+      "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1776621400000,
+      "tag": "0009_dashboard_metrics",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1776685400000,
+      "tag": "0010_goals_schema",
+      "breakpoints": true
     }
   ]
 }
