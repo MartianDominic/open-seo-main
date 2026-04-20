@@ -10,3 +10,5 @@ export * from "./alert-schema";
 export * from "./webhook-schema";
 export * from "./dashboard-schema";
 export * from "./goals-schema";
+export * from "./patterns-schema";
+export * from "./prospect-schema";
