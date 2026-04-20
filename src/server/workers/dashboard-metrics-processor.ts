@@ -18,6 +18,8 @@ import { computeHealthScore } from "@/lib/dashboard/health-score";
 import { eq, sql, and, gte, desc } from "drizzle-orm";
 import { createLogger } from "@/server/lib/logger";
 import type { DashboardMetricsJobData } from "@/server/queues/dashboardMetricsQueue";
+import { processClientGoals } from "@/server/queues/goalQueue";
+import { updateClientPriorityScore } from "./priority-score";
 
 const log = createLogger({ module: "dashboard-metrics-processor" });
 
@@ -205,4 +207,8 @@ async function computeClientMetrics(
     trafficTrendPct: trafficTrendPct.toFixed(4),
     alertsOpen,
   });
+
+  // Process goals and update priority score (Phase 22)
+  await processClientGoals(clientId);
+  await updateClientPriorityScore(clientId);
 }
