@@ -32,6 +32,12 @@ import {
   type BacklinksTimeseriesRequest,
 } from "@/server/lib/dataforseoBacklinks";
 import {
+  fetchKeywordsForSiteRaw,
+  fetchCompetitorsDomainRaw,
+  type KeywordsForSiteItem,
+  type CompetitorsDomainItem,
+} from "@/server/lib/dataforseoProspect";
+import {
   type DataforseoApiResponse,
   type DataforseoApiCallCost,
 } from "@/server/lib/dataforseoCost";
@@ -63,7 +69,13 @@ export function mapDataforseoPathToCreditFeature(
       return "keyword_research";
     case "dataforseo_labs": {
       const endpoint = path[3] ?? "";
-      if (endpoint.startsWith("domain_") || endpoint === "ranked_keywords") {
+      // Prospect analysis endpoints map to domain_overview
+      if (
+        endpoint.startsWith("domain_") ||
+        endpoint === "ranked_keywords" ||
+        endpoint === "keywords_for_site" ||
+        endpoint === "competitors_domain"
+      ) {
         return "domain_overview";
       }
       return "keyword_research";
@@ -205,6 +217,38 @@ export function createDataforseoClient(customer: BillingCustomerContext) {
         );
       },
     },
+    prospect: {
+      keywordsForSite(input: {
+        target: string;
+        locationCode: number;
+        languageCode: string;
+        limit?: number;
+      }) {
+        return meterDataforseoCall(customer, () =>
+          fetchKeywordsForSiteRaw({
+            target: input.target,
+            locationCode: input.locationCode,
+            languageCode: input.languageCode,
+            limit: input.limit,
+          }),
+        );
+      },
+      competitorsDomain(input: {
+        target: string;
+        locationCode: number;
+        languageCode: string;
+        limit?: number;
+      }) {
+        return meterDataforseoCall(customer, () =>
+          fetchCompetitorsDomainRaw({
+            target: input.target,
+            locationCode: input.locationCode,
+            languageCode: input.languageCode,
+            limit: input.limit,
+          }),
+        );
+      },
+    },
   } as const;
 }
 
@@ -326,4 +370,9 @@ async function trackDataforseoCost(args: {
   }
 }
 
-export type { LabsKeywordDataItem, SerpLiveItem };
+export type {
+  LabsKeywordDataItem,
+  SerpLiveItem,
+  KeywordsForSiteItem,
+  CompetitorsDomainItem,
+};
