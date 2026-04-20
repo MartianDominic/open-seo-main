@@ -44,6 +44,14 @@ describe("dashboard-schema", () => {
       expect(columnNames).toContain("alertsCritical");
       expect(columnNames).toContain("lastReportAt");
       expect(columnNames).toContain("lastAuditAt");
+      // Goal-based metrics (Phase 22)
+      expect(columnNames).toContain("goalAttainmentPct");
+      expect(columnNames).toContain("goalsMetCount");
+      expect(columnNames).toContain("goalsTotalCount");
+      expect(columnNames).toContain("primaryGoalName");
+      expect(columnNames).toContain("primaryGoalPct");
+      expect(columnNames).toContain("primaryGoalTrend");
+      expect(columnNames).toContain("priorityScore");
       expect(columnNames).toContain("computedAt");
     });
 
@@ -138,6 +146,14 @@ describe("dashboard-schema", () => {
         alertsCritical: 0,
         lastReportAt: new Date(),
         lastAuditAt: new Date(),
+        // Goal-based metrics (Phase 22)
+        goalAttainmentPct: "85.50",
+        goalsMetCount: 3,
+        goalsTotalCount: 5,
+        primaryGoalName: "Keywords in Top 10",
+        primaryGoalPct: "70.00",
+        primaryGoalTrend: "up",
+        priorityScore: 250,
         computedAt: new Date(),
       };
       expect(_typeCheck).toBeDefined();

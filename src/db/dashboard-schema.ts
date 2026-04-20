@@ -11,6 +11,7 @@ import {
   jsonb,
   index,
   uniqueIndex,
+  numeric,
 } from "drizzle-orm/pg-core";
 
 /**
@@ -44,6 +45,14 @@ export const clientDashboardMetrics = pgTable(
     alertsCritical: integer("alerts_critical").default(0),
     lastReportAt: timestamp("last_report_at", { withTimezone: true, mode: "date" }),
     lastAuditAt: timestamp("last_audit_at", { withTimezone: true, mode: "date" }),
+    // Goal-based metrics (Phase 22)
+    goalAttainmentPct: numeric("goal_attainment_pct"),
+    goalsMetCount: integer("goals_met_count").default(0),
+    goalsTotalCount: integer("goals_total_count").default(0),
+    primaryGoalName: text("primary_goal_name"),
+    primaryGoalPct: numeric("primary_goal_pct"),
+    primaryGoalTrend: text("primary_goal_trend"),
+    priorityScore: integer("priority_score").default(0),
     computedAt: timestamp("computed_at", { withTimezone: true, mode: "date" }).notNull().defaultNow(),
   },
   (table) => [
