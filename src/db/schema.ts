@@ -14,3 +14,4 @@ export * from "./patterns-schema";
 export * from "./prospect-schema";
 export * from "./proposal-schema";
 export * from "./client-schema";
+export * from "./automation-schema";

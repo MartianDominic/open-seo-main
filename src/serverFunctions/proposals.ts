@@ -361,6 +361,7 @@ export const initiateProposalSigning = createServerFn({ method: "POST" })
 
     return initiateSigning({
       proposalId: proposal.id,
+      accessToken: data.token,
       method: data.method,
       personalCode: data.personalCode,
       phoneNumber: data.phoneNumber,

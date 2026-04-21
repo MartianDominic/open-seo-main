@@ -34,30 +34,41 @@ const mockReturning = vi.fn();
 const mockWhere = vi.fn();
 const mockLimit = vi.fn();
 
-vi.mock("@/db/index", () => ({
-  db: {
-    select: () => ({
-      from: mockSelectFrom.mockReturnValue({
-        where: mockWhere.mockReturnValue({
-          limit: mockLimit.mockResolvedValue([]),
-        }),
+// Create a transaction-aware mock that passes `tx` with the same API as `db`
+const createDbMock = () => ({
+  select: () => ({
+    from: mockSelectFrom.mockReturnValue({
+      where: mockWhere.mockReturnValue({
+        limit: mockLimit.mockResolvedValue([]),
       }),
     }),
-    insert: () => ({
-      values: mockInsertValues.mockReturnValue({
+  }),
+  insert: () => ({
+    values: mockInsertValues.mockReturnValue({
+      returning: mockReturning,
+    }),
+  }),
+  update: () => ({
+    set: mockUpdateSet.mockReturnValue({
+      where: mockWhere.mockReturnValue({
         returning: mockReturning,
       }),
     }),
-    update: () => ({
-      set: mockUpdateSet.mockReturnValue({
-        where: mockWhere.mockReturnValue({
-          returning: mockReturning,
-        }),
-      }),
+  }),
+});
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const mockFindFirst = vi.fn() as ReturnType<typeof vi.fn> & { mockResolvedValue: (val: any) => void };
+
+vi.mock("@/db/index", () => ({
+  db: {
+    ...createDbMock(),
+    transaction: vi.fn(async (callback: (tx: ReturnType<typeof createDbMock>) => Promise<unknown>) => {
+      return callback(createDbMock());
     }),
     query: {
       proposals: {
-        findFirst: vi.fn(),
+        findFirst: mockFindFirst,
       },
     },
   },
@@ -154,14 +165,18 @@ describe("OnboardingService", () => {
     opportunityKeywords: [
       {
         keyword: "seo optimization",
-        category: "service",
+        category: "service" as const,
         searchVolume: 2200,
         cpc: 3.8,
         difficulty: 45,
         opportunityScore: 78,
-        source: "ai_generated",
+        source: "ai_generated" as const,
       },
     ],
+    competitorDomains: ["competitor1.com", "competitor2.com"],
+    competitorKeywords: null,
+    keywordGaps: null,
+    scrapedContent: null,
     costCents: 150,
     createdAt: new Date("2024-01-10"),
     completedAt: new Date("2024-01-10"),
@@ -201,8 +216,7 @@ describe("OnboardingService", () => {
   describe("triggerOnboarding", () => {
     it("should create a client from the prospect data", async () => {
       // Mock proposal query with prospect and analyses
-      const { db } = await import("@/db/index");
-      vi.mocked(db.query.proposals.findFirst).mockResolvedValue({
+      mockFindFirst.mockResolvedValue({
         ...mockProposal,
         prospect: {
           ...mockProspect,
@@ -233,8 +247,7 @@ describe("OnboardingService", () => {
     });
 
     it("should update prospect status to converted", async () => {
-      const { db } = await import("@/db/index");
-      vi.mocked(db.query.proposals.findFirst).mockResolvedValue({
+      mockFindFirst.mockResolvedValue({
         ...mockProposal,
         prospect: {
           ...mockProspect,
@@ -257,8 +270,7 @@ describe("OnboardingService", () => {
     });
 
     it("should create a project for the domain", async () => {
-      const { db } = await import("@/db/index");
-      vi.mocked(db.query.proposals.findFirst).mockResolvedValue({
+      mockFindFirst.mockResolvedValue({
         ...mockProposal,
         prospect: {
           ...mockProspect,
@@ -285,8 +297,7 @@ describe("OnboardingService", () => {
 
     it("should send GSC invite email", async () => {
       vi.clearAllMocks();
-      const { db } = await import("@/db/index");
-      vi.mocked(db.query.proposals.findFirst).mockResolvedValue({
+      mockFindFirst.mockResolvedValue({
         ...mockProposal,
         prospect: {
           ...mockProspect,
@@ -315,8 +326,7 @@ describe("OnboardingService", () => {
 
     it("should send kickoff scheduling email with Calendly link", async () => {
       vi.clearAllMocks();
-      const { db } = await import("@/db/index");
-      vi.mocked(db.query.proposals.findFirst).mockResolvedValue({
+      mockFindFirst.mockResolvedValue({
         ...mockProposal,
         prospect: {
           ...mockProspect,
@@ -344,8 +354,7 @@ describe("OnboardingService", () => {
     });
 
     it("should update proposal status to onboarded", async () => {
-      const { db } = await import("@/db/index");
-      vi.mocked(db.query.proposals.findFirst).mockResolvedValue({
+      mockFindFirst.mockResolvedValue({
         ...mockProposal,
         prospect: {
           ...mockProspect,
@@ -367,8 +376,7 @@ describe("OnboardingService", () => {
     });
 
     it("should throw error if proposal not found", async () => {
-      const { db } = await import("@/db/index");
-      vi.mocked(db.query.proposals.findFirst).mockResolvedValue(null);
+      mockFindFirst.mockResolvedValue(null);
 
       const { triggerOnboarding } = await import("./onboarding");
 
@@ -378,8 +386,7 @@ describe("OnboardingService", () => {
     });
 
     it("should throw error if prospect not linked to proposal", async () => {
-      const { db } = await import("@/db/index");
-      vi.mocked(db.query.proposals.findFirst).mockResolvedValue({
+      mockFindFirst.mockResolvedValue({
         ...mockProposal,
         prospect: null,
       });
@@ -392,9 +399,8 @@ describe("OnboardingService", () => {
     });
 
     it("should be idempotent - not create duplicate clients", async () => {
-      const { db } = await import("@/db/index");
       // Proposal already onboarded
-      vi.mocked(db.query.proposals.findFirst).mockResolvedValue({
+      mockFindFirst.mockResolvedValue({
         ...mockProposal,
         status: "onboarded",
         prospect: {
@@ -417,8 +423,7 @@ describe("OnboardingService", () => {
     });
 
     it("should use domain as client name if companyName is missing", async () => {
-      const { db } = await import("@/db/index");
-      vi.mocked(db.query.proposals.findFirst).mockResolvedValue({
+      mockFindFirst.mockResolvedValue({
         ...mockProposal,
         prospect: {
           ...mockProspect,
@@ -441,8 +446,7 @@ describe("OnboardingService", () => {
     });
 
     it("should handle missing contact email gracefully", async () => {
-      const { db } = await import("@/db/index");
-      vi.mocked(db.query.proposals.findFirst).mockResolvedValue({
+      mockFindFirst.mockResolvedValue({
         ...mockProposal,
         prospect: {
           ...mockProspect,

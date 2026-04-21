@@ -13,6 +13,137 @@
  */
 
 import { analyzeHtml } from "@/server/lib/audit/page-analyzer";
+
+// ---------------------------------------------------------------------------
+// SSRF Protection
+// ---------------------------------------------------------------------------
+
+/**
+ * Validates that a URL is safe to scrape (not internal/private).
+ *
+ * Rejects:
+ * - Private IPv4 ranges: 10.x.x.x, 172.16-31.x.x, 192.168.x.x
+ * - Localhost: 127.0.0.1, ::1, localhost
+ * - AWS metadata endpoint: 169.254.169.254
+ * - Link-local addresses: 169.254.x.x
+ * - Non-HTTP(S) schemes
+ *
+ * @param url - URL to validate
+ * @throws AppError if URL is not safe to scrape
+ */
+export function validateScrapableUrl(url: string): void {
+  let parsed: URL;
+  try {
+    parsed = new URL(url);
+  } catch {
+    throw new AppError("VALIDATION_ERROR", `Invalid URL format: ${url}`);
+  }
+
+  // Reject non-HTTP(S) schemes
+  if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
+    throw new AppError(
+      "VALIDATION_ERROR",
+      `Invalid URL scheme: ${parsed.protocol} - only http and https are allowed`,
+    );
+  }
+
+  const hostname = parsed.hostname.toLowerCase();
+
+  // Reject localhost
+  if (
+    hostname === "localhost" ||
+    hostname === "127.0.0.1" ||
+    hostname === "::1" ||
+    hostname === "[::1]"
+  ) {
+    throw new AppError(
+      "VALIDATION_ERROR",
+      "Cannot scrape localhost addresses",
+    );
+  }
+
+  // Check if hostname is an IP address
+  const ipv4Match = hostname.match(
+    /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/,
+  );
+  if (ipv4Match) {
+    const octets = ipv4Match.slice(1).map(Number);
+    const [a, b, c, d] = octets;
+
+    // Validate octets are in valid range
+    if (octets.some((o) => o > 255)) {
+      throw new AppError("VALIDATION_ERROR", `Invalid IP address: ${hostname}`);
+    }
+
+    // Reject private IP ranges
+    // 10.0.0.0/8
+    if (a === 10) {
+      throw new AppError(
+        "VALIDATION_ERROR",
+        "Cannot scrape private IP addresses (10.x.x.x)",
+      );
+    }
+
+    // 172.16.0.0/12 (172.16.0.0 - 172.31.255.255)
+    if (a === 172 && b >= 16 && b <= 31) {
+      throw new AppError(
+        "VALIDATION_ERROR",
+        "Cannot scrape private IP addresses (172.16-31.x.x)",
+      );
+    }
+
+    // 192.168.0.0/16
+    if (a === 192 && b === 168) {
+      throw new AppError(
+        "VALIDATION_ERROR",
+        "Cannot scrape private IP addresses (192.168.x.x)",
+      );
+    }
+
+    // 127.0.0.0/8 (loopback)
+    if (a === 127) {
+      throw new AppError(
+        "VALIDATION_ERROR",
+        "Cannot scrape loopback addresses (127.x.x.x)",
+      );
+    }
+
+    // 169.254.0.0/16 (link-local, includes AWS metadata 169.254.169.254)
+    if (a === 169 && b === 254) {
+      throw new AppError(
+        "VALIDATION_ERROR",
+        "Cannot scrape link-local or metadata addresses (169.254.x.x)",
+      );
+    }
+
+    // 0.0.0.0/8
+    if (a === 0) {
+      throw new AppError(
+        "VALIDATION_ERROR",
+        "Cannot scrape reserved addresses (0.x.x.x)",
+      );
+    }
+  }
+
+  // Check for IPv6 localhost or private addresses in brackets
+  if (hostname.startsWith("[")) {
+    const ipv6 = hostname.slice(1, -1).toLowerCase();
+    // Reject ::1 (localhost)
+    if (ipv6 === "::1" || ipv6 === "0:0:0:0:0:0:0:1") {
+      throw new AppError(
+        "VALIDATION_ERROR",
+        "Cannot scrape IPv6 localhost addresses",
+      );
+    }
+    // Reject fc00::/7 (unique local) and fe80::/10 (link-local)
+    if (ipv6.startsWith("fc") || ipv6.startsWith("fd") || ipv6.startsWith("fe80")) {
+      throw new AppError(
+        "VALIDATION_ERROR",
+        "Cannot scrape private IPv6 addresses",
+      );
+    }
+  }
+}
 import type { DataforseoApiResponse } from "@/server/lib/dataforseoCost";
 import { AppError } from "@/server/lib/errors";
 import {
@@ -234,12 +365,16 @@ async function fetchRawHtmlByTaskId(
  *
  * @param url - URL to fetch (must be publicly accessible)
  * @returns Raw HTML, status code, timing, and billing info
+ * @throws AppError if URL fails SSRF validation
  *
  * Cost: ~$0.02/page for JS-rendered HTML
  */
 export async function fetchRawHtml(
   url: string,
 ): Promise<DataforseoApiResponse<RawHtmlResult>> {
+  // SSRF protection: validate URL before making any external calls
+  validateScrapableUrl(url);
+
   // Step 1: Trigger content parsing
   const parsingResult = await triggerContentParsing(url);
 

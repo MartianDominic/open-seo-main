@@ -222,6 +222,106 @@ describe("volumeValidator", () => {
       expect(mockFetchSearchVolume).toHaveBeenCalledTimes(2);
     });
 
+    it("should handle exact batch boundary of 1000 keywords (single batch)", async () => {
+      const exactBatchKeywords: GeneratedKeyword[] = Array.from({ length: 1000 }, (_, i) => ({
+        keyword: `keyword ${i}`,
+        category: "product" as const,
+      }));
+
+      mockFetchSearchVolume.mockResolvedValue({
+        data: [],
+        billing: { path: ["v3", "keywords_data"], costUsd: 0.05, resultCount: 0 },
+      });
+
+      await validateKeywordVolumes(exactBatchKeywords, 2840, "en");
+
+      expect(mockFetchSearchVolume).toHaveBeenCalledTimes(1);
+      expect(mockFetchSearchVolume).toHaveBeenCalledWith({
+        keywords: expect.arrayContaining(["keyword 0", "keyword 999"]),
+        locationCode: 2840,
+        languageCode: "en",
+      });
+    });
+
+    it("should create 2 batches for 1001 keywords (boundary + 1)", async () => {
+      const boundaryPlusOne: GeneratedKeyword[] = Array.from({ length: 1001 }, (_, i) => ({
+        keyword: `keyword ${i}`,
+        category: "product" as const,
+      }));
+
+      mockFetchSearchVolume.mockResolvedValue({
+        data: [],
+        billing: { path: ["v3", "keywords_data"], costUsd: 0.05, resultCount: 0 },
+      });
+
+      await validateKeywordVolumes(boundaryPlusOne, 2840, "en");
+
+      expect(mockFetchSearchVolume).toHaveBeenCalledTimes(2);
+      // First batch should have 1000 keywords
+      expect(mockFetchSearchVolume.mock.calls[0][0].keywords).toHaveLength(1000);
+      // Second batch should have 1 keyword
+      expect(mockFetchSearchVolume.mock.calls[1][0].keywords).toHaveLength(1);
+    });
+
+    it("should create 2 batches for exactly 2000 keywords", async () => {
+      const exactTwoBatches: GeneratedKeyword[] = Array.from({ length: 2000 }, (_, i) => ({
+        keyword: `keyword ${i}`,
+        category: "product" as const,
+      }));
+
+      mockFetchSearchVolume.mockResolvedValue({
+        data: [],
+        billing: { path: ["v3", "keywords_data"], costUsd: 0.05, resultCount: 0 },
+      });
+
+      await validateKeywordVolumes(exactTwoBatches, 2840, "en");
+
+      expect(mockFetchSearchVolume).toHaveBeenCalledTimes(2);
+      expect(mockFetchSearchVolume.mock.calls[0][0].keywords).toHaveLength(1000);
+      expect(mockFetchSearchVolume.mock.calls[1][0].keywords).toHaveLength(1000);
+    });
+
+    it("should process batches concurrently with Promise.all", async () => {
+      const manyKeywords: GeneratedKeyword[] = Array.from({ length: 3000 }, (_, i) => ({
+        keyword: `keyword ${i}`,
+        category: "product" as const,
+      }));
+
+      const callOrder: number[] = [];
+      mockFetchSearchVolume.mockImplementation(async () => {
+        const callIndex = callOrder.length;
+        callOrder.push(callIndex);
+        // Simulate API delay
+        await new Promise((resolve) => setTimeout(resolve, 10));
+        return {
+          data: [],
+          billing: { path: ["v3", "keywords_data"], costUsd: 0.05, resultCount: 0 },
+        };
+      });
+
+      await validateKeywordVolumes(manyKeywords, 2840, "en");
+
+      // With 3 batches and default concurrency of 5, all should start together
+      expect(mockFetchSearchVolume).toHaveBeenCalledTimes(3);
+    });
+
+    it("should respect custom concurrency limit", async () => {
+      const manyKeywords: GeneratedKeyword[] = Array.from({ length: 5000 }, (_, i) => ({
+        keyword: `keyword ${i}`,
+        category: "product" as const,
+      }));
+
+      mockFetchSearchVolume.mockResolvedValue({
+        data: [],
+        billing: { path: ["v3", "keywords_data"], costUsd: 0.05, resultCount: 0 },
+      });
+
+      // With concurrency limit of 2 and 5 batches, should process in chunks
+      await validateKeywordVolumes(manyKeywords, 2840, "en", 2);
+
+      expect(mockFetchSearchVolume).toHaveBeenCalledTimes(5);
+    });
+
     it("should return accumulated cost", async () => {
       mockFetchSearchVolume.mockResolvedValue({
         data: [{ keyword: "test", search_volume: 100, cpc: 1.0 }],

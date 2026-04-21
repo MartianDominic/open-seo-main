@@ -258,4 +258,96 @@ describe("extractBusinessInfo", () => {
     expect(result.confidence).toBeLessThanOrEqual(1);
     expect(typeof result.confidence).toBe("number");
   });
+
+  describe("error scenarios", () => {
+    it("should return empty result with confidence=0 when ANTHROPIC_API_KEY is not set", async () => {
+      // Remove API key
+      delete process.env.ANTHROPIC_API_KEY;
+
+      const result = await extractBusinessInfo(mockPages, "example.com");
+
+      expect(result.products).toEqual([]);
+      expect(result.brands).toEqual([]);
+      expect(result.services).toEqual([]);
+      expect(result.location).toBeNull();
+      expect(result.targetMarket).toBeNull();
+      expect(result.summary).toBe("API key not configured");
+      expect(result.confidence).toBe(0);
+      // Verify API was never called
+      expect(mockCreate).not.toHaveBeenCalled();
+    });
+
+    it("should return empty result when Claude returns invalid JSON", async () => {
+      mockCreate.mockResolvedValue({
+        content: [
+          {
+            type: "text",
+            text: "This is not valid JSON { broken",
+          },
+        ],
+      });
+
+      const result = await extractBusinessInfo(mockPages, "example.com");
+
+      expect(result.products).toEqual([]);
+      expect(result.brands).toEqual([]);
+      expect(result.services).toEqual([]);
+      expect(result.location).toBeNull();
+      expect(result.targetMarket).toBeNull();
+      expect(result.summary).toBe("Failed to extract business information");
+      expect(result.confidence).toBe(0);
+    });
+
+    it("should return empty result when response fails Zod validation", async () => {
+      mockCreate.mockResolvedValue({
+        content: [
+          {
+            type: "text",
+            text: JSON.stringify({
+              products: ["AC Units"],
+              brands: ["Carrier"],
+              services: ["AC Repair"],
+              location: "Los Angeles, CA",
+              targetMarket: "residential",
+              summary: "HVAC services.",
+              confidence: 1.5, // Invalid: confidence must be 0-1
+            }),
+          },
+        ],
+      });
+
+      const result = await extractBusinessInfo(mockPages, "example.com");
+
+      expect(result.products).toEqual([]);
+      expect(result.brands).toEqual([]);
+      expect(result.services).toEqual([]);
+      expect(result.location).toBeNull();
+      expect(result.targetMarket).toBeNull();
+      expect(result.summary).toBe("Failed to extract business information");
+      expect(result.confidence).toBe(0);
+    });
+
+    it("should return empty result when response has missing required fields", async () => {
+      mockCreate.mockResolvedValue({
+        content: [
+          {
+            type: "text",
+            text: JSON.stringify({
+              // Missing products, brands, services, summary, confidence
+              location: "Los Angeles, CA",
+              targetMarket: "residential",
+            }),
+          },
+        ],
+      });
+
+      const result = await extractBusinessInfo(mockPages, "example.com");
+
+      expect(result.products).toEqual([]);
+      expect(result.brands).toEqual([]);
+      expect(result.services).toEqual([]);
+      expect(result.summary).toBe("Failed to extract business information");
+      expect(result.confidence).toBe(0);
+    });
+  });
 });

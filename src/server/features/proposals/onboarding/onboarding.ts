@@ -132,28 +132,43 @@ export async function triggerOnboarding(
     };
   }
 
-  // 1. Create client from prospect
-  const client = await createClientFromProposal(prospect, proposal.workspaceId);
+  // Perform all DB operations in a transaction
+  const { client, project } = await db.transaction(async (tx) => {
+    // 1. Create client from prospect
+    const createdClient = await createClientFromProposalWithTx(tx, prospect, proposal.workspaceId);
 
-  // 2. Update prospect status to converted
-  await db
-    .update(prospects)
-    .set({
-      status: "converted",
-      convertedClientId: client.id,
-      updatedAt: new Date(),
-    })
-    .where(eq(prospects.id, prospect.id));
+    // 2. Update prospect status to converted
+    await tx
+      .update(prospects)
+      .set({
+        status: "converted",
+        convertedClientId: createdClient.id,
+        updatedAt: new Date(),
+      })
+      .where(eq(prospects.id, prospect.id));
 
-  // 3. Create project with imported keywords
-  const project = await createProjectFromAnalysis(
-    client.id,
-    proposal.workspaceId,
-    prospect,
-    latestAnalysis
-  );
+    // 3. Create project with imported keywords
+    const createdProject = await createProjectFromAnalysisWithTx(
+      tx,
+      createdClient.id,
+      proposal.workspaceId,
+      prospect,
+      latestAnalysis
+    );
 
-  // 4. Send emails (only if contact email exists)
+    // 4. Update proposal status to onboarded
+    await tx
+      .update(proposals)
+      .set({
+        status: "onboarded",
+        updatedAt: new Date(),
+      })
+      .where(eq(proposals.id, proposalId));
+
+    return { client: createdClient, project: createdProject };
+  });
+
+  // 5. Send emails (only if contact email exists) - outside transaction as these are external calls
   let gscInviteSent = false;
   let kickoffEmailSent = false;
   let welcomeEmailSent = false;
@@ -194,7 +209,7 @@ export async function triggerOnboarding(
     });
   }
 
-  // 5. Notify agency
+  // 6. Notify agency - outside transaction as this is an external call
   const monthlyValue = (proposal.monthlyFeeCents ?? 0) / 100;
   const agencyNotified = await notifyAgency({
     clientName: companyName,
@@ -202,15 +217,6 @@ export async function triggerOnboarding(
     monthlyValue,
     projectId: project.id,
   });
-
-  // 6. Update proposal status to onboarded
-  await db
-    .update(proposals)
-    .set({
-      status: "onboarded",
-      updatedAt: new Date(),
-    })
-    .where(eq(proposals.id, proposalId));
 
   log.info("Onboarding completed", {
     proposalId,
@@ -232,27 +238,22 @@ export async function triggerOnboarding(
   };
 }
 
+// Type alias for transaction context
+type TxContext = Parameters<Parameters<typeof db.transaction>[0]>[0];
+
 /**
- * Create a client from prospect data.
- *
- * Maps prospect fields to client fields:
- * - companyName -> name (falls back to domain)
- * - domain, contactEmail, contactName, industry copied directly
- * - status set to "onboarding"
- * - convertedFromProspectId linked for auditing
- *
- * @param prospect - Source prospect data
- * @param workspaceId - Workspace to create client in
- * @returns Created client record
+ * Create a client from prospect data (transaction-aware version).
+ * Internal helper used within transactions.
  */
-export async function createClientFromProposal(
+async function createClientFromProposalWithTx(
+  tx: TxContext,
   prospect: ProspectData,
   workspaceId: string
 ): Promise<ClientSelect> {
   const clientId = nanoid();
   const now = new Date();
 
-  const [client] = await db
+  const [client] = await tx
     .insert(clients)
     .values({
       id: clientId,
@@ -279,20 +280,31 @@ export async function createClientFromProposal(
 }
 
 /**
- * Create a project for a new client with imported analysis data.
+ * Create a client from prospect data.
  *
- * Sets up:
- * - Project name: "SEO - {domain}"
- * - Domain for tracking
- * - Status: "setup" (ready for configuration)
+ * Maps prospect fields to client fields:
+ * - companyName -> name (falls back to domain)
+ * - domain, contactEmail, contactName, industry copied directly
+ * - status set to "onboarding"
+ * - convertedFromProspectId linked for auditing
  *
- * @param clientId - Client to create project for
- * @param workspaceId - Workspace (organization) for the project
- * @param prospect - Prospect data for domain
- * @param analysis - Optional analysis for baseline metrics
- * @returns Created project record
+ * @param prospect - Source prospect data
+ * @param workspaceId - Workspace to create client in
+ * @returns Created client record
  */
-export async function createProjectFromAnalysis(
+export async function createClientFromProposal(
+  prospect: ProspectData,
+  workspaceId: string
+): Promise<ClientSelect> {
+  return createClientFromProposalWithTx(db, prospect, workspaceId);
+}
+
+/**
+ * Create a project for a new client with imported analysis data (transaction-aware version).
+ * Internal helper used within transactions.
+ */
+async function createProjectFromAnalysisWithTx(
+  tx: TxContext,
   clientId: string,
   workspaceId: string,
   prospect: ProspectData,
@@ -304,7 +316,7 @@ export async function createProjectFromAnalysis(
   // Note: The existing projects table uses organizationId, not workspaceId
   // and doesn't have clientId or status columns.
   // We'll create a basic project and can extend the schema later.
-  const [project] = await db
+  const [project] = await tx
     .insert(projects)
     .values({
       id: projectId,
@@ -331,6 +343,29 @@ export async function createProjectFromAnalysis(
     domain: project.domain ?? prospect.domain,
     status: "setup",
   };
+}
+
+/**
+ * Create a project for a new client with imported analysis data.
+ *
+ * Sets up:
+ * - Project name: "SEO - {domain}"
+ * - Domain for tracking
+ * - Status: "setup" (ready for configuration)
+ *
+ * @param clientId - Client to create project for
+ * @param workspaceId - Workspace (organization) for the project
+ * @param prospect - Prospect data for domain
+ * @param analysis - Optional analysis for baseline metrics
+ * @returns Created project record
+ */
+export async function createProjectFromAnalysis(
+  clientId: string,
+  workspaceId: string,
+  prospect: ProspectData,
+  analysis?: ProspectAnalysisSelect | null
+): Promise<{ id: string; clientId: string; workspaceId: string; name: string; domain: string; status: string }> {
+  return createProjectFromAnalysisWithTx(db, clientId, workspaceId, prospect, analysis);
 }
 
 /**

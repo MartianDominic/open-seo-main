@@ -12,10 +12,24 @@ See: .planning/PROJECT.md (updated 2026-04-17)
 
 Phase: 30 of 30 (Interactive Proposals)
 Plan: 8 of 8 in current phase (30-08 complete)
-Status: Executing
-Last activity: 2026-04-21 — Completed Plan 30-08: Pipeline & Automation
+Status: Complete
+Last activity: 2026-04-21 — Phase 30 complete and committed
 
 Progress: [██████████] 100%
+
+## Phase 30 Summary
+
+Delivered complete proposal-to-client pipeline:
+- 30-01: Proposal schema (4 PostgreSQL tables)
+- 30-02: Lithuanian AI generation (Gemini 3.1 Pro)
+- 30-03: Scrollytelling proposal page (Framer Motion, Recharts, ROI calculator)
+- 30-04: Engagement analytics (view tracking, signals scoring)
+- 30-05: E-signature integration (Dokobit Smart-ID/Mobile-ID)
+- 30-06: Payment checkout (Stripe with webhooks)
+- 30-07: Auto-onboarding (client creation, GSC invite, notifications)
+- 30-08: Pipeline automation (kanban view, automation rules, cron)
+
+Tests: 170 passing (10 test files)
 
 ## Performance Metrics
 

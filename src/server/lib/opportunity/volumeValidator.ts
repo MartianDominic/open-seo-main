@@ -103,58 +103,82 @@ export function enrichKeywordsWithMetrics(
   return enrichedKeywords.sort((a, b) => b.opportunityScore - a.opportunityScore);
 }
 
+// Default concurrency limit to prevent overwhelming the API
+const DEFAULT_CONCURRENCY_LIMIT = 5;
+
 /**
  * Validate keywords by fetching search volume data from DataForSEO.
- * Batches keywords in groups of 1000 (API limit).
+ * Batches keywords in groups of 1000 (API limit) and processes batches
+ * concurrently with configurable concurrency limit.
  *
  * @param keywords - AI-generated keywords to validate
  * @param locationCode - DataForSEO location code (e.g., 2840 for US)
  * @param languageCode - Language code (e.g., "en")
+ * @param concurrencyLimit - Maximum concurrent batch requests (default: 5)
  * @returns Volume data for all keywords and total cost
  */
 export async function validateKeywordVolumes(
   keywords: GeneratedKeyword[],
   locationCode: number,
   languageCode: string,
+  concurrencyLimit: number = DEFAULT_CONCURRENCY_LIMIT,
 ): Promise<VolumeValidationResult> {
   if (keywords.length === 0) {
     return { volumeData: [], costUsd: 0 };
   }
 
   const keywordStrings = keywords.map((k) => k.keyword);
+
+  // Create batches
+  const batches: string[][] = [];
+  for (let i = 0; i < keywordStrings.length; i += MAX_KEYWORDS_PER_BATCH) {
+    batches.push(keywordStrings.slice(i, i + MAX_KEYWORDS_PER_BATCH));
+  }
+
+  // Process batches with concurrency limit
   const allVolumeData: KeywordVolumeResult[] = [];
   let totalCost = 0;
 
-  // Batch keywords
-  for (let i = 0; i < keywordStrings.length; i += MAX_KEYWORDS_PER_BATCH) {
-    const batch = keywordStrings.slice(i, i + MAX_KEYWORDS_PER_BATCH);
+  // Process in chunks based on concurrency limit
+  for (let i = 0; i < batches.length; i += concurrencyLimit) {
+    const batchChunk = batches.slice(i, i + concurrencyLimit);
 
-    try {
-      const response = await fetchSearchVolumeRaw({
-        keywords: batch,
-        locationCode,
-        languageCode,
-      });
+    const batchPromises = batchChunk.map(async (batch, chunkIndex) => {
+      const batchIndex = i + chunkIndex;
+      try {
+        const response = await fetchSearchVolumeRaw({
+          keywords: batch,
+          locationCode,
+          languageCode,
+        });
 
-      totalCost += response.billing.costUsd;
-
-      // Transform API response to our format
-      for (const item of response.data) {
-        allVolumeData.push(transformVolumeItem(item));
+        return {
+          volumeData: response.data.map(transformVolumeItem),
+          costUsd: response.billing.costUsd,
+        };
+      } catch (error) {
+        log.error(
+          "Failed to fetch search volume batch",
+          error instanceof Error ? error : new Error(String(error)),
+          { batchIndex, batchSize: batch.length },
+        );
+        throw error;
       }
-    } catch (error) {
-      log.error(
-        "Failed to fetch search volume batch",
-        error instanceof Error ? error : new Error(String(error)),
-        { batchStart: i, batchSize: batch.length },
-      );
-      throw error;
+    });
+
+    const results = await Promise.all(batchPromises);
+
+    // Aggregate results from this chunk
+    for (const result of results) {
+      allVolumeData.push(...result.volumeData);
+      totalCost += result.costUsd;
     }
   }
 
   log.info("Keyword volumes validated", {
     keywordsRequested: keywords.length,
     volumeResultsReceived: allVolumeData.length,
+    batchCount: batches.length,
     totalCost,
   });
 

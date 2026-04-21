@@ -62,6 +62,8 @@ describe("rankingQueue", () => {
     it("should create repeatable job at '0 3 * * *' (03:00 UTC daily)", async () => {
       const bullmq = await import("bullmq");
       const mockAdd = (bullmq as unknown as { __mockAdd: ReturnType<typeof vi.fn> }).__mockAdd;
+      const mockGetRepeatableJobs = (bullmq as unknown as { __mockGetRepeatableJobs: ReturnType<typeof vi.fn> }).__mockGetRepeatableJobs;
+      mockGetRepeatableJobs.mockResolvedValueOnce([]);
       const { initRankingScheduler } = await import("./rankingQueue");
 
       await initRankingScheduler();

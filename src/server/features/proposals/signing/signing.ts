@@ -20,6 +20,8 @@ import { ProposalService } from "../services/ProposalService";
 import { generateContractPdf, calculateDocumentHash } from "./pdf";
 import { putTextToR2 } from "@/server/lib/r2";
 import { createLogger } from "@/server/lib/logger";
+import { AppError } from "@/server/lib/errors";
+import { getRequiredEnvValueSync } from "@/server/lib/runtime-env";
 
 const log = createLogger({ module: "SigningService" });
 
@@ -28,6 +30,7 @@ const log = createLogger({ module: "SigningService" });
  */
 export interface InitiateSigningInput {
   proposalId: string;
+  accessToken: string;
   method: "smart_id" | "mobile_id";
   personalCode: string;
   phoneNumber?: string;
@@ -66,7 +69,7 @@ export function validatePersonalCode(personalCode: string): boolean {
  * @returns SHA256 hash as hex string
  */
 export function hashPersonalCode(personalCode: string): string {
-  const salt = process.env.PERSONAL_CODE_SALT ?? "";
+  const salt = getRequiredEnvValueSync("PERSONAL_CODE_SALT");
   return createHash("sha256")
     .update(personalCode + salt)
     .digest("hex");
@@ -98,19 +101,25 @@ export function hashPersonalCode(personalCode: string): string {
 export async function initiateProposalSigning(
   input: InitiateSigningInput
 ): Promise<InitiateSigningResult> {
-  const { proposalId, method, personalCode, phoneNumber, signerName, country = "LT" } = input;
+  const { proposalId, accessToken, method, personalCode, phoneNumber, signerName, country = "LT" } = input;
 
   log.info("Initiating proposal signing", { proposalId, method });
 
-  // 1. Verify proposal exists and is accepted
+  // 1. Verify proposal exists
   const proposal = await ProposalService.findById(proposalId);
 
   if (!proposal) {
-    throw new Error("Proposal not found");
+    throw new AppError("NOT_FOUND", "Proposal not found");
   }
 
+  // 2. Verify caller is authorized (token must match)
+  if (proposal.token !== accessToken) {
+    throw new AppError("FORBIDDEN", "Not authorized to sign this proposal");
+  }
+
+  // 3. Verify proposal is in accepted status
   if (proposal.status !== "accepted") {
-    throw new Error("Proposal must be accepted before signing");
+    throw new AppError("VALIDATION_ERROR", "Proposal must be accepted before signing");
   }
 
   // 2. Generate contract PDF

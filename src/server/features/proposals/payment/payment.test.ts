@@ -49,24 +49,32 @@ const mockUpdateSet = vi.fn();
 const mockSelectResult = vi.fn();
 const mockReturning = vi.fn();
 
-vi.mock("@/db/index", () => ({
-  db: {
-    select: () => ({
-      from: () => ({
-        where: mockSelectResult,
-      }),
+// Create a transaction-aware mock that passes `tx` with the same API as `db`
+const createDbMock = () => ({
+  select: () => ({
+    from: () => ({
+      where: mockSelectResult,
     }),
-    insert: () => ({
-      values: mockInsertValues.mockReturnValue({
+  }),
+  insert: () => ({
+    values: mockInsertValues.mockReturnValue({
+      returning: mockReturning,
+    }),
+  }),
+  update: () => ({
+    set: mockUpdateSet.mockReturnValue({
+      where: () => ({
         returning: mockReturning,
       }),
     }),
-    update: () => ({
-      set: mockUpdateSet.mockReturnValue({
-        where: () => ({
-          returning: mockReturning,
-        }),
-      }),
+  }),
+});
+
+vi.mock("@/db/index", () => ({
+  db: {
+    ...createDbMock(),
+    transaction: vi.fn(async (callback: (tx: ReturnType<typeof createDbMock>) => Promise<unknown>) => {
+      return callback(createDbMock());
     }),
   },
 }));
@@ -80,8 +88,24 @@ vi.mock("../services/ProposalService", () => ({
 }));
 
 describe("PaymentService", () => {
-  beforeEach(() => {
+  beforeEach(async () => {
     vi.clearAllMocks();
+    // Reset modules and re-mock Stripe to ensure mock is always active
+    vi.resetModules();
+    vi.doMock("stripe", () => {
+      return {
+        default: vi.fn().mockImplementation(() => ({
+          checkout: {
+            sessions: {
+              create: mockStripeCheckoutSessionsCreate,
+            },
+          },
+          webhooks: {
+            constructEvent: mockStripeWebhooksConstructEvent,
+          },
+        })),
+      };
+    });
     process.env = {
       ...originalEnv,
       STRIPE_SECRET_KEY: "sk_test_mock_key",
@@ -446,7 +470,7 @@ describe("PaymentService", () => {
   });
 
   describe("verifyWebhookSignature", () => {
-    it("should verify valid webhook signature", async () => {
+    it("should verify valid webhook signature with string payload", async () => {
       const payload = JSON.stringify({ type: "test" });
       const signature = "valid_signature";
 
@@ -467,6 +491,29 @@ describe("PaymentService", () => {
       );
     });
 
+    it("should verify valid webhook signature with Buffer payload (raw bytes)", async () => {
+      // This is the critical test: Stripe requires raw bytes for signature verification.
+      // The webhook handler must pass req.rawBody or Buffer, not parsed JSON.
+      const rawPayload = Buffer.from('{"type":"checkout.session.completed","data":{}}', "utf8");
+      const signature = "t=1234567890,v1=abc123,v0=def456";
+
+      mockStripeWebhooksConstructEvent.mockReturnValue({
+        type: "checkout.session.completed",
+        data: { object: {} },
+      });
+
+      const { verifyWebhookSignature } = await import("./payment");
+
+      const event = verifyWebhookSignature(rawPayload, signature);
+
+      expect(event).toBeDefined();
+      expect(mockStripeWebhooksConstructEvent).toHaveBeenCalledWith(
+        rawPayload,
+        signature,
+        "whsec_test_mock"
+      );
+    });
+
     it("should throw on invalid signature", async () => {
       const payload = JSON.stringify({ type: "test" });
       const signature = "invalid_signature";
@@ -478,6 +525,18 @@ describe("PaymentService", () => {
       const { verifyWebhookSignature } = await import("./payment");
 
       expect(() => verifyWebhookSignature(payload, signature)).toThrow(/Invalid signature/);
+    });
+
+    it("should throw if STRIPE_WEBHOOK_SECRET is not set", async () => {
+      delete process.env.STRIPE_WEBHOOK_SECRET;
+
+      vi.resetModules();
+
+      const { verifyWebhookSignature } = await import("./payment");
+
+      expect(() => verifyWebhookSignature("payload", "signature")).toThrow(
+        /STRIPE_WEBHOOK_SECRET/
+      );
     });
   });
 

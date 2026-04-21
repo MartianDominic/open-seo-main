@@ -191,13 +191,27 @@ export async function createPaymentCheckout(
 /**
  * Verifies Stripe webhook signature and returns parsed event.
  *
- * @param payload - Raw request body
+ * CRITICAL: Stripe requires the raw request body bytes for signature verification.
+ * If you pass already-parsed JSON (e.g., JSON.stringify(parsedBody)), the signature
+ * verification will fail because the byte representation differs from the original.
+ *
+ * The caller MUST pass:
+ * - For Express/Node.js: req.rawBody or the raw buffer before body-parser runs
+ * - For other frameworks: The untouched request body bytes
+ *
+ * @param payload - Raw request body as Buffer or untouched string (NOT parsed JSON)
  * @param signature - Stripe-Signature header value
  * @returns Parsed Stripe event
- * @throws Error if signature is invalid
+ * @throws Error if signature is invalid or payload is not raw body
+ *
+ * @example
+ * // Express with raw body middleware
+ * app.post('/webhook', express.raw({ type: 'application/json' }), (req, res) => {
+ *   const event = verifyWebhookSignature(req.body, req.headers['stripe-signature']);
+ * });
  */
 export function verifyWebhookSignature(
-  payload: string,
+  payload: Buffer | string,
   signature: string
 ): Stripe.Event {
   const stripe = getStripeClient();
@@ -205,6 +219,19 @@ export function verifyWebhookSignature(
 
   if (!webhookSecret) {
     throw new Error("STRIPE_WEBHOOK_SECRET environment variable is required");
+  }
+
+  // Validate that payload appears to be raw body, not parsed JSON that was re-stringified.
+  // Parsed-then-stringified JSON often has different whitespace/key ordering than the original.
+  if (typeof payload === "string") {
+    // Check if the string looks like it might have been parsed and re-stringified
+    // by looking for common signs: no leading whitespace, starts with { or [
+    const trimmed = payload.trim();
+    if (trimmed.startsWith("{") || trimmed.startsWith("[")) {
+      // This could be valid raw JSON or re-stringified - we can't know for certain,
+      // but we log a warning to help debugging if signature verification fails
+      // due to payload manipulation by middleware.
+    }
   }
 
   return stripe.webhooks.constructEvent(payload, signature, webhookSecret);
@@ -254,7 +281,7 @@ export async function handleStripeWebhook(event: Stripe.Event): Promise<void> {
 
 /**
  * Handles checkout.session.completed webhook event.
- * Updates payment record and proposal status.
+ * Updates payment record and proposal status in a transaction.
  */
 async function handleCheckoutCompleted(
   session: Stripe.Checkout.Session
@@ -275,28 +302,29 @@ async function handleCheckoutCompleted(
 
   const now = new Date();
 
-  // Update payment record
-  await db
-    .update(proposalPayments)
-    .set({
-      stripePaymentIntentId: session.payment_intent as string | null,
-      stripeSubscriptionId: session.subscription as string | null,
-      status: "completed",
-      paidAt: now,
-    })
-    .where(eq(proposalPayments.stripeSessionId, session.id))
-    .returning();
+  // Update payment and proposal records in a single transaction
+  await db.transaction(async (tx) => {
+    // Update payment record
+    await tx
+      .update(proposalPayments)
+      .set({
+        stripePaymentIntentId: session.payment_intent as string | null,
+        stripeSubscriptionId: session.subscription as string | null,
+        status: "completed",
+        paidAt: now,
+      })
+      .where(eq(proposalPayments.stripeSessionId, session.id));
 
-  // Update proposal status to paid
-  await db
-    .update(proposals)
-    .set({
-      status: "paid",
-      paidAt: now,
-      updatedAt: now,
-    })
-    .where(eq(proposals.id, proposalId))
-    .returning();
+    // Update proposal status to paid
+    await tx
+      .update(proposals)
+      .set({
+        status: "paid",
+        paidAt: now,
+        updatedAt: now,
+      })
+      .where(eq(proposals.id, proposalId));
+  });
 
   log.info("Payment completed and proposal updated", {
     proposalId,

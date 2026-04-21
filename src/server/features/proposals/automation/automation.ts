@@ -10,9 +10,10 @@
  * - Execution logging to prevent duplicates
  */
 
-import { eq, and, lt, desc } from "drizzle-orm";
+import { eq, and, lt } from "drizzle-orm";
 import { db } from "@/db/index";
-import { proposals, proposalViews, type ProposalSelect } from "@/db/proposal-schema";
+import { proposals, type ProposalSelect } from "@/db/proposal-schema";
+import { automationLogs } from "@/db/automation-schema";
 import { calculateEngagementSignals } from "@/server/features/proposals/tracking/EngagementSignals";
 import { notifyAgencySlack } from "@/server/features/proposals/onboarding/notifications";
 import { sendFollowUpEmail } from "./email";
@@ -100,47 +101,47 @@ export const DEFAULT_AUTOMATIONS: AutomationRule[] = [
 ];
 
 /**
- * Automation execution log entry.
- * Stored to prevent duplicate executions.
- */
-export interface AutomationLog {
-  id: string;
-  proposalId: string;
-  ruleId: string;
-  executedAt: Date;
-}
-
-// In-memory log for now (would be a database table in production)
-const executionLogs = new Map<string, AutomationLog>();
-
-/**
  * Check if an automation has already been executed for a proposal.
+ * Queries the database to check for existing execution logs.
  */
 export async function hasBeenExecuted(
   proposalId: string,
   ruleId: string
 ): Promise<boolean> {
-  const key = `${proposalId}:${ruleId}`;
-  return executionLogs.has(key);
+  const existing = await db
+    .select({ id: automationLogs.id })
+    .from(automationLogs)
+    .where(
+      and(
+        eq(automationLogs.proposalId, proposalId),
+        eq(automationLogs.ruleId, ruleId)
+      )
+    )
+    .limit(1);
+
+  return existing.length > 0;
 }
 
 /**
- * Log an automation execution.
+ * Log an automation execution to the database.
+ * Persists the execution record to prevent duplicate executions after server restart.
  */
 export async function logAutomationExecution(
   proposalId: string,
-  ruleId: string
+  ruleId: string,
+  actionType: string
 ): Promise<void> {
-  const key = `${proposalId}:${ruleId}`;
-  const logEntry: AutomationLog = {
-    id: key,
+  const id = `${proposalId}:${ruleId}`;
+
+  await db.insert(automationLogs).values({
+    id,
     proposalId,
     ruleId,
+    actionType,
     executedAt: new Date(),
-  };
-  executionLogs.set(key, logEntry);
+  });
 
-  log.info("Automation execution logged", { proposalId, ruleId });
+  log.info("Automation execution logged", { proposalId, ruleId, actionType });
 }
 
 /**
@@ -158,7 +159,8 @@ export interface ProposalWithProspect extends ProposalSelect {
  * Find proposals matching a time-since-stage trigger.
  */
 async function findTimeSinceStageMatches(
-  trigger: AutomationTrigger
+  trigger: AutomationTrigger,
+  workspaceId: string
 ): Promise<ProposalWithProspect[]> {
   if (!trigger.stage || !trigger.days) {
     return [];
@@ -172,6 +174,7 @@ async function findTimeSinceStageMatches(
     .from(proposals)
     .where(
       and(
+        eq(proposals.workspaceId, workspaceId),
         eq(proposals.status, trigger.stage),
         lt(proposals.updatedAt, cutoff)
       )
@@ -184,17 +187,24 @@ async function findTimeSinceStageMatches(
  * Find proposals matching an engagement signal trigger.
  */
 async function findEngagementSignalMatches(
-  trigger: AutomationTrigger
+  trigger: AutomationTrigger,
+  workspaceId: string
 ): Promise<ProposalWithProspect[]> {
   if (!trigger.signal) {
     return [];
   }
 
   // Get all proposals in viewed status (most relevant for engagement signals)
+  // Filtered by workspaceId to ensure we only process proposals from the correct organization
   const viewedProposals = await db
     .select()
     .from(proposals)
-    .where(eq(proposals.status, "viewed"));
+    .where(
+      and(
+        eq(proposals.workspaceId, workspaceId),
+        eq(proposals.status, "viewed")
+      )
+    );
 
   const matching: ProposalWithProspect[] = [];
 
@@ -216,16 +226,18 @@ async function findEngagementSignalMatches(
 
 /**
  * Find proposals matching an automation rule trigger.
+ * Filters by workspaceId to ensure we only process proposals from the correct organization.
  */
 export async function findMatchingProposals(
-  rule: AutomationRule
+  rule: AutomationRule,
+  workspaceId: string
 ): Promise<ProposalWithProspect[]> {
   switch (rule.trigger.type) {
     case "time_since_stage":
-      return findTimeSinceStageMatches(rule.trigger);
+      return findTimeSinceStageMatches(rule.trigger, workspaceId);
 
     case "engagement_signal":
-      return findEngagementSignalMatches(rule.trigger);
+      return findEngagementSignalMatches(rule.trigger, workspaceId);
 
     case "manual":
       // Manual triggers don't auto-match proposals
@@ -297,15 +309,18 @@ export async function executeAction(
 }
 
 /**
- * Process all automation rules.
- * This should be called periodically (e.g., hourly via cron).
+ * Process all automation rules for a specific workspace.
+ * This should be called periodically (e.g., hourly via cron) with the workspace to process.
+ *
+ * @param workspaceId - The workspace ID to filter proposals by. Required to ensure
+ *                      automations only process proposals belonging to the correct organization.
  */
-export async function processAutomations(): Promise<{
+export async function processAutomations(workspaceId: string): Promise<{
   processed: number;
   executed: number;
   errors: number;
 }> {
-  log.info("Processing automations");
+  log.info("Processing automations", { workspaceId });
 
   // Use default automations (in production, these would come from database)
   const rules = DEFAULT_AUTOMATIONS.filter((r) => r.enabled);
@@ -316,7 +331,7 @@ export async function processAutomations(): Promise<{
 
   for (const rule of rules) {
     try {
-      const matchingProposals = await findMatchingProposals(rule);
+      const matchingProposals = await findMatchingProposals(rule, workspaceId);
       processed += matchingProposals.length;
 
       for (const proposal of matchingProposals) {
@@ -331,7 +346,7 @@ export async function processAutomations(): Promise<{
           await executeAction(rule.action, proposal);
 
           // Log the execution
-          await logAutomationExecution(proposal.id, rule.id);
+          await logAutomationExecution(proposal.id, rule.id, rule.action.type);
 
           executed++;
           log.info("Automation executed", {
@@ -364,8 +379,15 @@ export async function processAutomations(): Promise<{
 }
 
 /**
- * Clear execution logs (for testing).
+ * Clear execution logs for a specific proposal (for testing).
+ * Deletes all automation logs for the given proposal ID from the database.
  */
-export function clearExecutionLogs(): void {
-  executionLogs.clear();
+export async function clearExecutionLogs(proposalId?: string): Promise<void> {
+  if (proposalId) {
+    await db
+      .delete(automationLogs)
+      .where(eq(automationLogs.proposalId, proposalId));
+  } else {
+    await db.delete(automationLogs);
+  }
 }

@@ -190,6 +190,71 @@ describe("detectBusinessLinks", () => {
     expect(result.contact).toBe("https://example.com/get-in-touch");
   });
 
+  it("filters dangerous URL schemes (javascript:, data:, vbscript:, mailto:)", () => {
+    const links = [
+      "javascript:alert('xss')",
+      "data:text/html,<script>alert('xss')</script>",
+      "vbscript:msgbox('xss')",
+      "mailto:test@example.com",
+      "/products",
+      "/about",
+    ];
+
+    const result = detectBusinessLinks(links, baseUrl);
+
+    // Should only detect safe internal links
+    expect(result.products).toBe("https://example.com/products");
+    expect(result.about).toBe("https://example.com/about");
+  });
+
+  it("filters dangerous schemes in category links", () => {
+    const links = [
+      "javascript:void(0)",
+      "/category/electronics",
+      "data:text/html,malicious",
+      "/category/clothing",
+    ];
+
+    const result = detectBusinessLinks(links, baseUrl);
+
+    // Should only include safe category links
+    expect(result.categories).toHaveLength(2);
+    expect(result.categories).toContain("https://example.com/category/electronics");
+    expect(result.categories).toContain("https://example.com/category/clothing");
+  });
+
+  it("filters dangerous schemes case-insensitively", () => {
+    const links = [
+      "JAVASCRIPT:alert('xss')",
+      "JavaScript:void(0)",
+      "DATA:text/html,test",
+      "MAILTO:test@example.com",
+      "/products",
+    ];
+
+    const result = detectBusinessLinks(links, baseUrl);
+
+    expect(result.products).toBe("https://example.com/products");
+  });
+
+  it("rejects dangerous schemes even if pathname matches patterns", () => {
+    // These URLs have pathnames that would match patterns but use dangerous schemes
+    const links = [
+      "javascript:/products",
+      "data:/about",
+      "vbscript:/services",
+      "mailto:/contact",
+    ];
+
+    const result = detectBusinessLinks(links, baseUrl);
+
+    // All should be null because the schemes are dangerous
+    expect(result.products).toBeNull();
+    expect(result.about).toBeNull();
+    expect(result.services).toBeNull();
+    expect(result.contact).toBeNull();
+  });
+
   it("limits categories to first 3 found", () => {
     const links = [
       "/category/a",

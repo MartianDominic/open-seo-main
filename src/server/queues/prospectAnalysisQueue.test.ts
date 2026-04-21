@@ -19,24 +19,35 @@ vi.mock("@/server/lib/logger", () => ({
   }),
 }));
 
+// Mock database for getWorkspaceAnalysisCountToday
+const mockDbSelect = vi.fn();
+vi.mock("@/db/index", () => ({
+  db: {
+    select: () => ({
+      from: () => ({
+        innerJoin: () => ({
+          where: mockDbSelect,
+        }),
+      }),
+    }),
+  },
+}));
+
+// Mock prospect schema
+vi.mock("@/db/prospect-schema", () => ({
+  prospectAnalyses: { prospectId: "prospectId", createdAt: "createdAt" },
+  prospects: { id: "id", workspaceId: "workspaceId" },
+}));
+
 // Mock BullMQ Queue with hoisted functions
 vi.mock("bullmq", async () => {
   const mockAdd = vi.fn().mockResolvedValue({});
-  const mockGetCompleted = vi.fn().mockResolvedValue([]);
-  const mockGetActive = vi.fn().mockResolvedValue([]);
-  const mockGetWaiting = vi.fn().mockResolvedValue([]);
 
   return {
     Queue: vi.fn().mockImplementation(() => ({
       add: mockAdd,
-      getCompleted: mockGetCompleted,
-      getActive: mockGetActive,
-      getWaiting: mockGetWaiting,
     })),
     __mockAdd: mockAdd,
-    __mockGetCompleted: mockGetCompleted,
-    __mockGetActive: mockGetActive,
-    __mockGetWaiting: mockGetWaiting,
   };
 });
 
@@ -170,32 +181,35 @@ describe("prospectAnalysisQueue", () => {
   });
 
   describe("getWorkspaceAnalysisCountToday", () => {
-    it("should count completed, active, and waiting jobs for workspace", async () => {
-      const bullmq = await import("bullmq");
-      const mockGetCompleted = (bullmq as unknown as { __mockGetCompleted: ReturnType<typeof vi.fn> }).__mockGetCompleted;
-      const mockGetActive = (bullmq as unknown as { __mockGetActive: ReturnType<typeof vi.fn> }).__mockGetActive;
-      const mockGetWaiting = (bullmq as unknown as { __mockGetWaiting: ReturnType<typeof vi.fn> }).__mockGetWaiting;
-
-      // Set up mock data
-      const now = Date.now();
-      mockGetCompleted.mockResolvedValueOnce([
-        { data: { workspaceId: "ws-123" }, finishedOn: now - 1000 },
-        { data: { workspaceId: "ws-123" }, finishedOn: now - 2000 },
-        { data: { workspaceId: "ws-other" }, finishedOn: now - 3000 },
-      ]);
-      mockGetActive.mockResolvedValueOnce([
-        { data: { workspaceId: "ws-123" } },
-      ]);
-      mockGetWaiting.mockResolvedValueOnce([
-        { data: { workspaceId: "ws-123" } },
-        { data: { workspaceId: "ws-other" } },
-      ]);
+    it("should count analyses from database for workspace today", async () => {
+      // Mock database to return count of 4 analyses
+      mockDbSelect.mockResolvedValueOnce([{ count: 4 }]);
 
       const { getWorkspaceAnalysisCountToday } = await import("./prospectAnalysisQueue");
       const count = await getWorkspaceAnalysisCountToday("ws-123");
 
-      // 2 completed + 1 active + 1 waiting = 4
       expect(count).toBe(4);
+      expect(mockDbSelect).toHaveBeenCalled();
+    });
+
+    it("should return 0 when no analyses found", async () => {
+      // Mock database to return empty result
+      mockDbSelect.mockResolvedValueOnce([{ count: 0 }]);
+
+      const { getWorkspaceAnalysisCountToday } = await import("./prospectAnalysisQueue");
+      const count = await getWorkspaceAnalysisCountToday("ws-empty");
+
+      expect(count).toBe(0);
+    });
+
+    it("should handle null result gracefully", async () => {
+      // Mock database to return undefined
+      mockDbSelect.mockResolvedValueOnce([]);
+
+      const { getWorkspaceAnalysisCountToday } = await import("./prospectAnalysisQueue");
+      const count = await getWorkspaceAnalysisCountToday("ws-null");
+
+      expect(count).toBe(0);
     });
   });
 });

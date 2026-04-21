@@ -150,6 +150,7 @@ describe("SigningService", () => {
 
       const result = await initiateProposalSigning({
         proposalId: "proposal-123",
+        accessToken: "token-abc",
         method: "smart_id",
         personalCode: "38501010001",
         signerName: "Jonas Jonaitis",
@@ -180,6 +181,7 @@ describe("SigningService", () => {
 
       const result = await initiateProposalSigning({
         proposalId: "proposal-123",
+        accessToken: "token-abc",
         method: "mobile_id",
         personalCode: "38501010001",
         phoneNumber: "+37060012345",
@@ -204,11 +206,34 @@ describe("SigningService", () => {
       await expect(
         initiateProposalSigning({
           proposalId: "nonexistent",
+          accessToken: "any-token",
           method: "smart_id",
           personalCode: "38501010001",
           signerName: "Test User",
         })
       ).rejects.toThrow(/not found/i);
+    });
+
+    it("should throw FORBIDDEN error if access token does not match", async () => {
+      const { ProposalService } = await import("../services/ProposalService");
+      vi.mocked(ProposalService.findById).mockResolvedValue({
+        ...mockProposal,
+        views: [],
+        signatures: [],
+        payments: [],
+      } as ReturnType<typeof ProposalService.findById> extends Promise<infer T> ? T : never);
+
+      const { initiateProposalSigning } = await import("./signing");
+
+      await expect(
+        initiateProposalSigning({
+          proposalId: "proposal-123",
+          accessToken: "wrong-token",
+          method: "smart_id",
+          personalCode: "38501010001",
+          signerName: "Test User",
+        })
+      ).rejects.toThrow(/not authorized/i);
     });
 
     it("should throw error if proposal not in accepted status", async () => {
@@ -226,6 +251,7 @@ describe("SigningService", () => {
       await expect(
         initiateProposalSigning({
           proposalId: "proposal-123",
+          accessToken: "token-abc",
           method: "smart_id",
           personalCode: "38501010001",
           signerName: "Test User",
@@ -253,6 +279,7 @@ describe("SigningService", () => {
 
       await initiateProposalSigning({
         proposalId: "proposal-123",
+        accessToken: "token-abc",
         method: "smart_id",
         personalCode: "38501010001",
         signerName: "Test User",
@@ -290,6 +317,7 @@ describe("SigningService", () => {
 
       await initiateProposalSigning({
         proposalId: "proposal-123",
+        accessToken: "token-abc",
         method: "smart_id",
         personalCode: "38501010001",
         signerName: "Jonas Jonaitis",

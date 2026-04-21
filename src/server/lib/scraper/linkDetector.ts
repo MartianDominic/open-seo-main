@@ -50,10 +50,34 @@ const CATEGORY_PATTERNS = [
 ];
 
 /**
+ * Dangerous URL schemes that should be filtered out.
+ * These can be used for XSS attacks or are not useful for web scraping.
+ */
+const DANGEROUS_SCHEMES = [
+  "javascript:",
+  "data:",
+  "vbscript:",
+  "mailto:",
+];
+
+/**
+ * Check if a URL uses a dangerous scheme.
+ */
+function hasDangerousScheme(url: string): boolean {
+  const lowerUrl = url.toLowerCase();
+  return DANGEROUS_SCHEMES.some((scheme) => lowerUrl.startsWith(scheme));
+}
+
+/**
  * Normalize a URL to absolute form.
  */
 function normalizeUrl(link: string, baseUrl: string): string | null {
   try {
+    // Filter dangerous URL schemes early
+    if (hasDangerousScheme(link)) {
+      return null;
+    }
+
     // If already absolute, parse it
     if (link.startsWith("http://") || link.startsWith("https://")) {
       const url = new URL(link);

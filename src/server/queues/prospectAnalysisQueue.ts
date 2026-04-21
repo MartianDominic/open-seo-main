@@ -13,6 +13,9 @@
 import { Queue, type JobsOptions } from "bullmq";
 import { getSharedBullMQConnection } from "@/server/lib/redis";
 import { createLogger } from "@/server/lib/logger";
+import { db } from "@/db/index";
+import { prospectAnalyses, prospects } from "@/db/prospect-schema";
+import { eq, and, gte, count } from "drizzle-orm";
 
 const log = createLogger({ module: "prospectAnalysisQueue" });
 
@@ -101,57 +104,28 @@ export async function submitProspectAnalysis(
 /**
  * Get count of analyses run today for a workspace.
  * Used for rate limiting (max 10/day).
+ *
+ * Queries the database directly for efficiency (O(1) index lookup)
+ * rather than scanning BullMQ jobs (O(n)).
  */
 export async function getWorkspaceAnalysisCountToday(
   workspaceId: string,
 ): Promise<number> {
-  // Get all completed and active jobs from today
   const startOfDay = new Date();
   startOfDay.setHours(0, 0, 0, 0);
-  const startTimestamp = startOfDay.getTime();
 
-  const [completed, active, waiting] = await Promise.all([
-    prospectAnalysisQueue.getCompleted(0, 1000),
-    prospectAnalysisQueue.getActive(0, 100),
-    prospectAnalysisQueue.getWaiting(0, 100),
-  ]);
+  // Query prospect_analyses joined with prospects to filter by workspace
+  // Count all analyses created today (pending, running, completed, failed)
+  const [result] = await db
+    .select({ count: count() })
+    .from(prospectAnalyses)
+    .innerJoin(prospects, eq(prospectAnalyses.prospectId, prospects.id))
+    .where(
+      and(
+        eq(prospects.workspaceId, workspaceId),
+        gte(prospectAnalyses.createdAt, startOfDay),
+      ),
+    );
 
-  let count = 0;
-
-  // Count completed jobs from today for this workspace
-  for (const job of completed) {
-    if (
-      job.data &&
-      "workspaceId" in job.data &&
-      job.data.workspaceId === workspaceId &&
-      job.finishedOn &&
-      job.finishedOn >= startTimestamp
-    ) {
-      count++;
-    }
-  }
-
-  // Count active jobs for this workspace
-  for (const job of active) {
-    if (
-      job.data &&
-      "workspaceId" in job.data &&
-      job.data.workspaceId === workspaceId
-    ) {
-      count++;
-    }
-  }
-
-  // Count waiting jobs for this workspace
-  for (const job of waiting) {
-    if (
-      job.data &&
-      "workspaceId" in job.data &&
-      job.data.workspaceId === workspaceId
-    ) {
-      count++;
-    }
-  }
-
-  return count;
+  return result?.count ?? 0;
 }

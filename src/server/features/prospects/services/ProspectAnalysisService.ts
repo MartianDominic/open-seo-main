@@ -54,12 +54,14 @@ export const ProspectAnalysisService = {
    * Discover competitors for a prospect.
    * Calls DataForSEO competitors_domain endpoint and filters by relevance.
    *
+   * @param workspaceId - Workspace ID for authorization
    * @param prospectId - Prospect to analyze
    * @param customer - Billing context for DataForSEO API
    * @param limit - Maximum number of competitors to return (default 3)
    * @returns Filtered and sorted competitors
    */
   async discoverCompetitors(
+    workspaceId: string,
     prospectId: string,
     customer: BillingCustomerContext,
     limit = 3,
@@ -73,6 +75,11 @@ export const ProspectAnalysisService = {
 
     if (!prospect) {
       throw new AppError("NOT_FOUND", `Prospect not found: ${prospectId}`);
+    }
+
+    // Authorization: verify prospect belongs to workspace
+    if (prospect.workspaceId !== workspaceId) {
+      throw new AppError("FORBIDDEN", "Access denied to this prospect");
     }
 
     // Get latest analysis for target region/language
@@ -125,6 +132,7 @@ export const ProspectAnalysisService = {
    * Analyze keyword gaps between prospect and competitors.
    * Calls domain_intersection for each competitor and aggregates results.
    *
+   * @param workspaceId - Workspace ID for authorization
    * @param analysisId - Analysis record to update
    * @param competitorDomains - Competitor domains to analyze
    * @param customer - Billing context for DataForSEO API
@@ -133,6 +141,7 @@ export const ProspectAnalysisService = {
    * @returns Aggregated and deduplicated keyword gaps
    */
   async analyzeKeywordGaps(
+    workspaceId: string,
     analysisId: string,
     competitorDomains: string[],
     customer: BillingCustomerContext,
@@ -164,34 +173,74 @@ export const ProspectAnalysisService = {
       );
     }
 
+    // Authorization: verify prospect belongs to workspace
+    if (prospect.workspaceId !== workspaceId) {
+      throw new AppError("FORBIDDEN", "Access denied to this prospect");
+    }
+
     const client = createDataforseoClient(customer);
     const allGaps: KeywordGap[] = [];
 
-    // Fetch gaps for each competitor
-    for (const competitorDomain of competitorDomains) {
-      try {
-        const gaps = await client.prospect.domainIntersection({
+    // Fetch gaps for all competitors in parallel using Promise.allSettled
+    // This allows partial success - we collect results from successful calls
+    // and log failures without stopping the entire analysis
+    const intersectionPromises = competitorDomains.map((competitorDomain) =>
+      client.prospect
+        .domainIntersection({
           target1: competitorDomain, // Competitor has the keywords
           target2: prospect.domain, // Prospect is missing them
           locationCode,
           languageCode,
           limit: 100, // Limit per competitor
-        });
+        })
+        .then((gaps) => ({ competitorDomain, gaps, success: true as const }))
+        .catch((error) => ({
+          competitorDomain,
+          error: error as Error,
+          success: false as const,
+        })),
+    );
 
-        allGaps.push(...gaps);
+    const results = await Promise.all(intersectionPromises);
 
+    // Process results and handle partial failures
+    let successCount = 0;
+    let failureCount = 0;
+
+    for (const result of results) {
+      if (result.success) {
+        allGaps.push(...result.gaps);
+        successCount++;
         log.info("Domain intersection completed", {
           analysisId,
-          competitorDomain,
-          gapsFound: gaps.length,
+          competitorDomain: result.competitorDomain,
+          gapsFound: result.gaps.length,
         });
-      } catch (error) {
-        log.error("Domain intersection failed", error as Error, {
+      } else {
+        failureCount++;
+        log.error("Domain intersection failed", result.error, {
           analysisId,
-          competitorDomain,
+          competitorDomain: result.competitorDomain,
         });
-        throw error; // Propagate error to caller
       }
+    }
+
+    // If all competitors failed, throw an error
+    if (successCount === 0 && competitorDomains.length > 0) {
+      throw new AppError(
+        "EXTERNAL_SERVICE_ERROR",
+        `All domain intersection calls failed for analysis: ${analysisId}`,
+      );
+    }
+
+    // Log summary if there were partial failures
+    if (failureCount > 0) {
+      log.warn("Some domain intersections failed", {
+        analysisId,
+        successCount,
+        failureCount,
+        totalCompetitors: competitorDomains.length,
+      });
     }
 
     // Deduplicate by keyword (keep highest opportunity score)
@@ -231,11 +280,13 @@ export const ProspectAnalysisService = {
    * Step 3: Aggregate and score results
    * Step 4: Update analysis record
    *
+   * @param workspaceId - Workspace ID for authorization
    * @param prospectId - Prospect to analyze
    * @param customer - Billing context for DataForSEO API
    * @returns Summary statistics
    */
   async runGapAnalysis(
+    workspaceId: string,
     prospectId: string,
     customer: BillingCustomerContext,
   ): Promise<GapAnalysisSummary> {
@@ -248,6 +299,11 @@ export const ProspectAnalysisService = {
 
     if (!prospect) {
       throw new AppError("NOT_FOUND", `Prospect not found: ${prospectId}`);
+    }
+
+    // Authorization: verify prospect belongs to workspace
+    if (prospect.workspaceId !== workspaceId) {
+      throw new AppError("FORBIDDEN", "Access denied to this prospect");
     }
 
     const [analysis] = await db
@@ -276,6 +332,7 @@ export const ProspectAnalysisService = {
 
     // Step 1: Discover competitors (top 3)
     const { competitors } = await this.discoverCompetitors(
+      workspaceId,
       prospectId,
       customer,
       3,
@@ -294,6 +351,7 @@ export const ProspectAnalysisService = {
     // Step 2 & 3: Analyze keyword gaps and aggregate
     const competitorDomains = competitors.map((c) => c.domain);
     const { gaps } = await this.analyzeKeywordGaps(
+      workspaceId,
       analysis.id,
       competitorDomains,
       customer,

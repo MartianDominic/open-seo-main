@@ -10,6 +10,19 @@ function readEnv(name: string): string | undefined {
 }
 
 /**
+ * Synchronous version of getRequiredEnvValue for use in contexts
+ * where async is not possible (e.g., hash functions, synchronous initialization).
+ * Throws immediately if the env var is missing.
+ */
+export function getRequiredEnvValueSync(name: string): string {
+  const value = readEnv(name);
+  if (!value) {
+    throw new Error(`Missing required environment variable: ${name}`);
+  }
+  return value;
+}
+
+/**
  * Get a required env var or throw a descriptive error. Async for
  * backward-compatibility with existing callers (safe to `await`).
  */

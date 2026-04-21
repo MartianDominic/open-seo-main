@@ -5,13 +5,38 @@
 import type { KeywordGap } from "@/db/prospect-schema";
 
 /**
- * Escapes a CSV field value by wrapping it in quotes if it contains commas
+ * Characters that can trigger formula execution in Excel/Google Sheets
+ * Prefixing with a tab character prevents execution while preserving display
+ */
+const FORMULA_TRIGGERS = ["=", "+", "-", "@", "\t", "\r"];
+
+/**
+ * Escapes a CSV field value to prevent CSV injection and handle special characters
+ * - Prefixes formula-triggering characters with tab to prevent execution
+ * - Escapes double quotes by doubling them
+ * - Wraps in quotes if contains commas, quotes, or newlines
  */
 function escapeCsvField(value: string | number): string {
-  const stringValue = String(value);
-  if (stringValue.includes(",")) {
-    return `"${stringValue}"`;
+  let stringValue = String(value);
+
+  // Sanitize formula-triggering characters by prefixing with tab
+  if (FORMULA_TRIGGERS.some((trigger) => stringValue.startsWith(trigger))) {
+    stringValue = `\t${stringValue}`;
   }
+
+  // Check if quoting is needed (commas, quotes, or newlines)
+  const needsQuoting =
+    stringValue.includes(",") ||
+    stringValue.includes('"') ||
+    stringValue.includes("\n") ||
+    stringValue.includes("\r");
+
+  if (needsQuoting) {
+    // Escape double quotes by doubling them
+    const escaped = stringValue.replace(/"/g, '""');
+    return `"${escaped}"`;
+  }
+
   return stringValue;
 }
 

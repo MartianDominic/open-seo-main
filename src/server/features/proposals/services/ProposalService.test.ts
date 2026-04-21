@@ -172,7 +172,7 @@ describe("ProposalService", () => {
       };
 
       vi.mocked(ProspectService.findById).mockResolvedValue(
-        mockProspect as ReturnType<typeof ProspectService.findById> extends Promise<infer T> ? T : never
+        mockProspect as unknown as ReturnType<typeof ProspectService.findById> extends Promise<infer T> ? T : never
       );
 
       const result = await ProposalService.create({
@@ -214,7 +214,7 @@ describe("ProposalService", () => {
       };
 
       vi.mocked(ProspectService.findById).mockResolvedValue(
-        mockProspect as ReturnType<typeof ProspectService.findById> extends Promise<infer T> ? T : never
+        mockProspect as unknown as ReturnType<typeof ProspectService.findById> extends Promise<infer T> ? T : never
       );
 
       await expect(
@@ -264,6 +264,44 @@ describe("ProposalService", () => {
 
       expect(result).toBeNull();
     });
+
+    it("should throw GONE error if proposal has expired", async () => {
+      // Set expiresAt to a date in the past
+      const pastDate = new Date();
+      pastDate.setDate(pastDate.getDate() - 1); // Yesterday
+      mockLimit.mockResolvedValue([{ ...mockProposal, expiresAt: pastDate }]);
+
+      const { ProposalService } = await import("./ProposalService");
+
+      await expect(ProposalService.findByToken("expired-token")).rejects.toThrow(
+        /proposal has expired/i
+      );
+    });
+
+    it("should return proposal if expiresAt is in the future", async () => {
+      // Set expiresAt to a date in the future
+      const futureDate = new Date();
+      futureDate.setDate(futureDate.getDate() + 30); // 30 days from now
+      mockLimit.mockResolvedValue([{ ...mockProposal, expiresAt: futureDate }]);
+
+      const { ProposalService } = await import("./ProposalService");
+
+      const result = await ProposalService.findByToken("valid-token");
+
+      expect(result).toBeDefined();
+      expect(result?.token).toBe("unique-token-abc");
+    });
+
+    it("should return proposal if expiresAt is null (no expiration)", async () => {
+      mockLimit.mockResolvedValue([{ ...mockProposal, expiresAt: null }]);
+
+      const { ProposalService } = await import("./ProposalService");
+
+      const result = await ProposalService.findByToken("no-expiry-token");
+
+      expect(result).toBeDefined();
+      expect(result?.token).toBe("unique-token-abc");
+    });
   });
 
   describe("findByWorkspace", () => {
@@ -303,12 +341,32 @@ describe("ProposalService", () => {
     });
 
     it("should throw if proposal not found", async () => {
-      mockReturning.mockResolvedValue([]);
+      mockLimit.mockResolvedValue([]);
       const { ProposalService } = await import("./ProposalService");
 
       await expect(
         ProposalService.update("nonexistent", { setupFeeCents: 300000 })
       ).rejects.toThrow(/not found/i);
+    });
+
+    it("should reject updates to non-draft proposals", async () => {
+      // Proposal is in "sent" status - should not allow updates
+      mockLimit.mockResolvedValue([{ ...mockProposal, status: "sent" }]);
+      const { ProposalService } = await import("./ProposalService");
+
+      await expect(
+        ProposalService.update("proposal-123", { setupFeeCents: 300000 })
+      ).rejects.toThrow(/cannot update proposal in sent status/i);
+    });
+
+    it("should reject updates to signed proposals", async () => {
+      // Signed proposals must never have pricing changed
+      mockLimit.mockResolvedValue([{ ...mockProposal, status: "signed" }]);
+      const { ProposalService } = await import("./ProposalService");
+
+      await expect(
+        ProposalService.update("proposal-123", { monthlyFeeCents: 500000 })
+      ).rejects.toThrow(/cannot update proposal in signed status/i);
     });
 
     it("should validate status transitions", async () => {
@@ -381,6 +439,49 @@ describe("ProposalService", () => {
       // Should have updated proposal status to viewed
       expect(mockReturning).toHaveBeenCalled();
     });
+
+    it("should handle concurrent first views atomically (race condition prevention)", async () => {
+      // Simulate a proposal that appears as 'sent' with null firstViewedAt
+      // But the atomic update returns nothing because another request already updated it
+      mockLimit.mockResolvedValue([
+        { ...mockProposal, status: "sent", firstViewedAt: null },
+      ]);
+
+      // First call to mockReturning is for the view insert
+      // Second call returns empty array (atomic update found no matching row)
+      mockReturning
+        .mockResolvedValueOnce([{ id: "view-456" }]) // View insert succeeds
+        .mockResolvedValueOnce([]); // Atomic status update finds no matching row (already updated)
+
+      const { ProposalService } = await import("./ProposalService");
+
+      // This should not throw - it gracefully handles the case where
+      // another concurrent request already updated the status
+      const result = await ProposalService.recordView("proposal-123", {
+        deviceType: "desktop",
+      });
+
+      expect(result).toBeDefined();
+      expect(result.id).toBe("view-456");
+    });
+
+    it("should not update status if proposal already viewed", async () => {
+      // Proposal already has firstViewedAt set
+      mockLimit.mockResolvedValue([
+        { ...mockProposal, status: "viewed", firstViewedAt: new Date() },
+      ]);
+      mockReturning.mockResolvedValue([{ id: "view-789" }]);
+
+      const { ProposalService } = await import("./ProposalService");
+
+      const result = await ProposalService.recordView("proposal-123", {
+        deviceType: "tablet",
+      });
+
+      expect(result).toBeDefined();
+      // mockReturning should only be called once (for view insert, not for status update)
+      expect(mockReturning).toHaveBeenCalledTimes(1);
+    });
   });
 
   describe("delete", () => {
@@ -448,7 +549,7 @@ describe("ProposalService", () => {
         analyses: [],
       };
 
-      const content = generateDefaultContent(prospect as Parameters<typeof generateDefaultContent>[0]);
+      const content = generateDefaultContent(prospect as unknown as Parameters<typeof generateDefaultContent>[0]);
 
       expect(content.hero.headline).toBeTruthy();
       expect(content.currentState.traffic).toBe(0);

@@ -293,6 +293,7 @@ export const ProposalService = {
   /**
    * Find proposal by public access token.
    * Used for unauthenticated viewing of proposals.
+   * Throws if proposal has expired.
    */
   async findByToken(token: string): Promise<ProposalSelect | null> {
     const [proposal] = await db
@@ -301,7 +302,14 @@ export const ProposalService = {
       .where(eq(proposals.token, token))
       .limit(1);
 
-    return proposal ?? null;
+    if (!proposal) return null;
+
+    // Check if proposal has expired
+    if (proposal.expiresAt && proposal.expiresAt < new Date()) {
+      throw new AppError("GONE", "Proposal has expired");
+    }
+
+    return proposal;
   },
 
   /**
@@ -342,9 +350,28 @@ export const ProposalService = {
 
   /**
    * Update proposal fields.
-   * Only allowed in draft status for most fields.
+   * Only allowed in draft status for content/pricing changes.
    */
   async update(id: string, input: UpdateProposalInput): Promise<ProposalSelect> {
+    // First, fetch the proposal to check its status
+    const [proposal] = await db
+      .select()
+      .from(proposals)
+      .where(eq(proposals.id, id))
+      .limit(1);
+
+    if (!proposal) {
+      throw new AppError("NOT_FOUND", "Proposal not found");
+    }
+
+    // Only allow updates to draft proposals
+    if (proposal.status !== "draft") {
+      throw new AppError(
+        "VALIDATION_ERROR",
+        `Cannot update proposal in ${proposal.status} status. Only draft proposals can be modified.`,
+      );
+    }
+
     const [updated] = await db
       .update(proposals)
       .set({
@@ -353,10 +380,6 @@ export const ProposalService = {
       })
       .where(eq(proposals.id, id))
       .returning();
-
-    if (!updated) {
-      throw new AppError("NOT_FOUND", "Proposal not found");
-    }
 
     log.info("Proposal updated", { id });
     return updated;
@@ -438,18 +461,28 @@ export const ProposalService = {
       })
       .returning();
 
-    // Update proposal on first view
+    // Update proposal on first view using atomic update to prevent race condition
+    // The WHERE clause ensures only one concurrent request can trigger the status update
     if (!proposal.firstViewedAt && proposal.status === "sent") {
-      await db
+      const [updated] = await db
         .update(proposals)
         .set({
           status: "viewed",
           firstViewedAt: new Date(),
           updatedAt: new Date(),
         })
-        .where(eq(proposals.id, proposalId));
+        .where(
+          and(
+            eq(proposals.id, proposalId),
+            eq(proposals.status, "sent"),
+          )
+        )
+        .returning();
 
-      log.info("Proposal first viewed", { proposalId });
+      // Only log if this request actually triggered the first view update
+      if (updated) {
+        log.info("Proposal first viewed", { proposalId });
+      }
     }
 
     return view;

@@ -11,7 +11,6 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import type { KeywordGap } from "@/db/prospect-schema";
 
 // Mock Redis before any imports
 vi.mock("@/server/lib/redis", () => ({
@@ -33,12 +32,8 @@ vi.mock("@/server/lib/redis", () => ({
 }));
 
 // Mock the database
-const mockSelect = vi.fn();
-const mockFrom = vi.fn();
 const mockWhere = vi.fn();
 const mockLimit = vi.fn();
-const mockUpdate = vi.fn();
-const mockSet = vi.fn();
 
 vi.mock("@/db/index", () => ({
   db: {
@@ -140,6 +135,7 @@ describe("ProspectAnalysisService", () => {
       );
 
       const result = await ProspectAnalysisService.discoverCompetitors(
+        "workspace-456",
         "prospect-123",
         mockBillingContext,
         3,
@@ -154,6 +150,30 @@ describe("ProspectAnalysisService", () => {
         languageCode: "en",
         limit: 10,
       });
+    });
+
+    it("should throw FORBIDDEN when workspace does not own prospect", async () => {
+      // Mock prospect exists but belongs to different workspace
+      mockLimit.mockResolvedValueOnce([
+        {
+          id: "prospect-123",
+          domain: "example.com",
+          workspaceId: "workspace-456", // Belongs to workspace-456
+        },
+      ]);
+
+      const { ProspectAnalysisService } = await import(
+        "./ProspectAnalysisService"
+      );
+
+      await expect(
+        ProspectAnalysisService.discoverCompetitors(
+          "wrong-workspace", // Caller passes different workspace
+          "prospect-123",
+          mockBillingContext,
+          3,
+        ),
+      ).rejects.toThrow("Access denied to this prospect");
     });
 
     it("should limit competitors to specified count", async () => {
@@ -186,6 +206,7 @@ describe("ProspectAnalysisService", () => {
       );
 
       const result = await ProspectAnalysisService.discoverCompetitors(
+        "workspace-456",
         "prospect-123",
         mockBillingContext,
         2,
@@ -203,6 +224,7 @@ describe("ProspectAnalysisService", () => {
 
       await expect(
         ProspectAnalysisService.discoverCompetitors(
+          "workspace-456",
           "nonexistent-prospect",
           mockBillingContext,
           3,
@@ -235,6 +257,7 @@ describe("ProspectAnalysisService", () => {
       );
 
       const result = await ProspectAnalysisService.discoverCompetitors(
+        "workspace-456",
         "prospect-123",
         mockBillingContext,
         3,
@@ -259,6 +282,7 @@ describe("ProspectAnalysisService", () => {
         {
           id: "prospect-123",
           domain: "example.com",
+          workspaceId: "workspace-456",
         },
       ]);
 
@@ -310,6 +334,7 @@ describe("ProspectAnalysisService", () => {
       );
 
       const result = await ProspectAnalysisService.analyzeKeywordGaps(
+        "workspace-456",
         "analysis-789",
         ["competitor1.com", "competitor2.com"],
         mockBillingContext,
@@ -321,6 +346,40 @@ describe("ProspectAnalysisService", () => {
       expect(result.gaps[0].keyword).toBe("seo tools"); // Highest opportunity score
       expect(result.gaps[0].trafficPotential).toBe(6875);
       expect(mockDomainIntersection).toHaveBeenCalledTimes(2);
+    });
+
+    it("should throw FORBIDDEN when workspace does not own prospect via analysis", async () => {
+      // Mock analysis exists
+      mockLimit.mockResolvedValueOnce([
+        {
+          id: "analysis-789",
+          prospectId: "prospect-123",
+        },
+      ]);
+
+      // Mock prospect exists but belongs to different workspace
+      mockLimit.mockResolvedValueOnce([
+        {
+          id: "prospect-123",
+          domain: "example.com",
+          workspaceId: "workspace-456", // Belongs to workspace-456
+        },
+      ]);
+
+      const { ProspectAnalysisService } = await import(
+        "./ProspectAnalysisService"
+      );
+
+      await expect(
+        ProspectAnalysisService.analyzeKeywordGaps(
+          "wrong-workspace", // Caller passes different workspace
+          "analysis-789",
+          ["competitor.com"],
+          mockBillingContext,
+          2840,
+          "en",
+        ),
+      ).rejects.toThrow("Access denied to this prospect");
     });
 
     it("should sort gaps by opportunity score descending", async () => {
@@ -335,6 +394,7 @@ describe("ProspectAnalysisService", () => {
         {
           id: "prospect-123",
           domain: "example.com",
+          workspaceId: "workspace-456",
         },
       ]);
 
@@ -373,6 +433,7 @@ describe("ProspectAnalysisService", () => {
       );
 
       const result = await ProspectAnalysisService.analyzeKeywordGaps(
+        "workspace-456",
         "analysis-789",
         ["competitor.com"],
         mockBillingContext,
@@ -394,6 +455,7 @@ describe("ProspectAnalysisService", () => {
 
       await expect(
         ProspectAnalysisService.analyzeKeywordGaps(
+          "workspace-456",
           "nonexistent-analysis",
           ["competitor.com"],
           mockBillingContext,
@@ -415,6 +477,7 @@ describe("ProspectAnalysisService", () => {
         {
           id: "prospect-123",
           domain: "example.com",
+          workspaceId: "workspace-456",
         },
       ]);
 
@@ -428,13 +491,14 @@ describe("ProspectAnalysisService", () => {
 
       await expect(
         ProspectAnalysisService.analyzeKeywordGaps(
+          "workspace-456",
           "analysis-789",
           ["competitor.com"],
           mockBillingContext,
           2840,
           "en",
         ),
-      ).rejects.toThrow("DataForSEO API error");
+      ).rejects.toThrow("All domain intersection calls failed");
     });
   });
 
@@ -486,7 +550,7 @@ describe("ProspectAnalysisService", () => {
       ]);
 
       // Mock analysis lookup in analyzeKeywordGaps
-      mockLimit.mockResolvedValue([
+      mockLimit.mockResolvedValueOnce([
         {
           id: "analysis-789",
           prospectId: "prospect-123",
@@ -494,10 +558,11 @@ describe("ProspectAnalysisService", () => {
       ]);
 
       // Mock prospect lookup in analyzeKeywordGaps
-      mockLimit.mockResolvedValue([
+      mockLimit.mockResolvedValueOnce([
         {
           id: "prospect-123",
           domain: "example.com",
+          workspaceId: "workspace-456",
         },
       ]);
 
@@ -542,6 +607,7 @@ describe("ProspectAnalysisService", () => {
       );
 
       const result = await ProspectAnalysisService.runGapAnalysis(
+        "workspace-456",
         "prospect-123",
         mockBillingContext,
       );
@@ -551,6 +617,29 @@ describe("ProspectAnalysisService", () => {
       expect(result.avgOpportunityScore).toBeGreaterThan(0);
       expect(mockCompetitorsDomain).toHaveBeenCalledTimes(1);
       expect(mockDomainIntersection).toHaveBeenCalledTimes(3);
+    });
+
+    it("should throw FORBIDDEN when workspace does not own prospect", async () => {
+      // Mock prospect exists but belongs to different workspace
+      mockLimit.mockResolvedValueOnce([
+        {
+          id: "prospect-123",
+          domain: "example.com",
+          workspaceId: "workspace-456", // Belongs to workspace-456
+        },
+      ]);
+
+      const { ProspectAnalysisService } = await import(
+        "./ProspectAnalysisService"
+      );
+
+      await expect(
+        ProspectAnalysisService.runGapAnalysis(
+          "wrong-workspace", // Caller passes different workspace
+          "prospect-123",
+          mockBillingContext,
+        ),
+      ).rejects.toThrow("Access denied to this prospect");
     });
 
     it("should handle no competitors found", async () => {
@@ -599,6 +688,7 @@ describe("ProspectAnalysisService", () => {
       );
 
       const result = await ProspectAnalysisService.runGapAnalysis(
+        "workspace-456",
         "prospect-123",
         mockBillingContext,
       );
@@ -653,17 +743,18 @@ describe("ProspectAnalysisService", () => {
         { domain: "c5.com", avg_position: 5, intersections: 120, full_domain_metrics: { organic: { etv: 0.75 } } },
       ]);
 
-      mockLimit.mockResolvedValue([
+      mockLimit.mockResolvedValueOnce([
         {
           id: "analysis-789",
           prospectId: "prospect-123",
         },
       ]);
 
-      mockLimit.mockResolvedValue([
+      mockLimit.mockResolvedValueOnce([
         {
           id: "prospect-123",
           domain: "example.com",
+          workspaceId: "workspace-456",
         },
       ]);
 
@@ -674,6 +765,7 @@ describe("ProspectAnalysisService", () => {
       );
 
       const result = await ProspectAnalysisService.runGapAnalysis(
+        "workspace-456",
         "prospect-123",
         mockBillingContext,
       );

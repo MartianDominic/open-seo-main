@@ -3,7 +3,7 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { fetchRawHtml, scrapeProspectPage } from "./dataforseoScraper";
+import { fetchRawHtml, scrapeProspectPage, validateScrapableUrl } from "./dataforseoScraper";
 import * as pageAnalyzer from "@/server/lib/audit/page-analyzer";
 
 // Mock the page analyzer
@@ -196,6 +196,81 @@ describe("fetchRawHtml", () => {
     });
 
     await expect(fetchRawHtml("https://example.com")).rejects.toThrow();
+  });
+});
+
+describe("validateScrapableUrl (SSRF protection)", () => {
+  it("should allow valid public URLs", () => {
+    expect(() => validateScrapableUrl("https://example.com")).not.toThrow();
+    expect(() => validateScrapableUrl("http://example.com")).not.toThrow();
+    expect(() => validateScrapableUrl("https://subdomain.example.com/path")).not.toThrow();
+  });
+
+  it("should reject localhost addresses", () => {
+    expect(() => validateScrapableUrl("http://localhost")).toThrow("Cannot scrape localhost");
+    expect(() => validateScrapableUrl("http://localhost:3000")).toThrow("Cannot scrape localhost");
+    expect(() => validateScrapableUrl("http://127.0.0.1")).toThrow("Cannot scrape localhost");
+    expect(() => validateScrapableUrl("http://127.0.0.1:8080")).toThrow("Cannot scrape localhost");
+  });
+
+  it("should reject loopback range (127.x.x.x)", () => {
+    expect(() => validateScrapableUrl("http://127.0.0.2")).toThrow("loopback");
+    expect(() => validateScrapableUrl("http://127.255.255.255")).toThrow("loopback");
+  });
+
+  it("should reject private IP 10.x.x.x range", () => {
+    expect(() => validateScrapableUrl("http://10.0.0.1")).toThrow("private IP");
+    expect(() => validateScrapableUrl("http://10.255.255.255")).toThrow("private IP");
+  });
+
+  it("should reject private IP 172.16-31.x.x range", () => {
+    expect(() => validateScrapableUrl("http://172.16.0.1")).toThrow("private IP");
+    expect(() => validateScrapableUrl("http://172.31.255.255")).toThrow("private IP");
+    // 172.15.x.x and 172.32.x.x should be allowed (not in private range)
+    expect(() => validateScrapableUrl("http://172.15.0.1")).not.toThrow();
+    expect(() => validateScrapableUrl("http://172.32.0.1")).not.toThrow();
+  });
+
+  it("should reject private IP 192.168.x.x range", () => {
+    expect(() => validateScrapableUrl("http://192.168.0.1")).toThrow("private IP");
+    expect(() => validateScrapableUrl("http://192.168.255.255")).toThrow("private IP");
+  });
+
+  it("should reject AWS metadata endpoint (169.254.169.254)", () => {
+    expect(() => validateScrapableUrl("http://169.254.169.254")).toThrow("link-local or metadata");
+    expect(() => validateScrapableUrl("http://169.254.169.254/latest/meta-data/")).toThrow("link-local or metadata");
+  });
+
+  it("should reject link-local range (169.254.x.x)", () => {
+    expect(() => validateScrapableUrl("http://169.254.0.1")).toThrow("link-local or metadata");
+    expect(() => validateScrapableUrl("http://169.254.255.255")).toThrow("link-local or metadata");
+  });
+
+  it("should reject non-HTTP(S) schemes", () => {
+    expect(() => validateScrapableUrl("ftp://example.com")).toThrow("Invalid URL scheme");
+    expect(() => validateScrapableUrl("file:///etc/passwd")).toThrow("Invalid URL scheme");
+    expect(() => validateScrapableUrl("javascript:alert(1)")).toThrow("Invalid URL scheme");
+    expect(() => validateScrapableUrl("data:text/html,<script>")).toThrow("Invalid URL scheme");
+  });
+
+  it("should reject invalid URL format", () => {
+    expect(() => validateScrapableUrl("not-a-url")).toThrow("Invalid URL format");
+    expect(() => validateScrapableUrl("")).toThrow("Invalid URL format");
+  });
+
+  it("should reject IPv6 localhost", () => {
+    expect(() => validateScrapableUrl("http://[::1]")).toThrow("localhost");
+    expect(() => validateScrapableUrl("http://[::1]:8080")).toThrow("localhost");
+  });
+});
+
+describe("fetchRawHtml SSRF protection", () => {
+  it("should reject private IPs before making API calls", async () => {
+    await expect(fetchRawHtml("http://10.0.0.1")).rejects.toThrow("private IP");
+    await expect(fetchRawHtml("http://169.254.169.254")).rejects.toThrow("link-local or metadata");
+    await expect(fetchRawHtml("http://localhost")).rejects.toThrow("localhost");
+    // Verify fetch was never called (SSRF blocked before API call)
+    expect(mockFetch).not.toHaveBeenCalled();
   });
 });
 

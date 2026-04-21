@@ -8,7 +8,8 @@
  * - DifficultyBadge for visual difficulty indicator
  * - Add to targets action (placeholder)
  */
-import { useState, useMemo } from "react";
+import { useState, useMemo, useRef } from "react";
+import { useVirtualizer } from "@tanstack/react-virtual";
 import {
   Table,
   TableHeader,
@@ -27,6 +28,11 @@ import {
 import { DifficultyBadge } from "./DifficultyBadge";
 import { ChevronUp, ChevronDown, Plus } from "lucide-react";
 import type { KeywordGap } from "@/db/prospect-schema";
+
+// Row height for virtualization (in pixels)
+const ROW_HEIGHT = 52;
+// Number of rows to render outside the visible area
+const OVERSCAN = 5;
 
 // Sortable columns
 export type SortColumn =
@@ -172,6 +178,20 @@ export function KeywordGapTable({ gaps, onAddTarget }: KeywordGapTableProps) {
     );
   }
 
+  // Ref for the scrollable container
+  const parentRef = useRef<HTMLDivElement>(null);
+
+  // Set up virtualizer for large datasets
+  const rowVirtualizer = useVirtualizer({
+    count: sortedGaps.length,
+    getScrollElement: () => parentRef.current,
+    estimateSize: () => ROW_HEIGHT,
+    overscan: OVERSCAN,
+  });
+
+  const virtualRows = rowVirtualizer.getVirtualItems();
+  const totalSize = rowVirtualizer.getTotalSize();
+
   return (
     <div className="rounded-md border">
       <Table>
@@ -189,46 +209,82 @@ export function KeywordGapTable({ gaps, onAddTarget }: KeywordGapTableProps) {
             <TableHead className="w-[60px]">Action</TableHead>
           </TableRow>
         </TableHeader>
-        <TableBody>
-          {sortedGaps.map((gap, index) => (
-            <TableRow key={`${gap.keyword}-${gap.competitorDomain}-${index}`}>
-              <TableCell className="font-medium">{gap.keyword}</TableCell>
-              <TableCell className="text-muted-foreground">
-                {gap.competitorDomain}
-              </TableCell>
-              <TableCell>{gap.competitorPosition}</TableCell>
-              <TableCell>{gap.searchVolume.toLocaleString()}</TableCell>
-              <TableCell>${gap.cpc.toFixed(2)}</TableCell>
-              <TableCell>
-                <DifficultyBadge difficulty={gap.difficulty} />
-              </TableCell>
-              <TableCell className="font-semibold text-primary">
-                {gap.trafficPotential.toLocaleString()}
-              </TableCell>
-              <TableCell>
-                <TooltipProvider>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        disabled
-                        onClick={() => onAddTarget?.(gap.keyword)}
-                        aria-label="Add to targets"
-                      >
-                        <Plus className="h-4 w-4" />
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      <p>Coming soon</p>
-                    </TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
-              </TableCell>
-            </TableRow>
-          ))}
-        </TableBody>
       </Table>
+      {/* Virtualized scrollable container */}
+      <div
+        ref={parentRef}
+        className="max-h-[600px] overflow-auto"
+        style={{ contain: "strict" }}
+      >
+        <Table>
+          <TableBody>
+            {/* Spacer for total virtual height */}
+            <tr style={{ height: totalSize }}>
+              <td style={{ padding: 0, border: 0 }} />
+            </tr>
+          </TableBody>
+        </Table>
+        {/* Positioned rows */}
+        <div
+          style={{
+            position: "absolute",
+            top: 0,
+            left: 0,
+            width: "100%",
+          }}
+        >
+          <Table>
+            <TableBody>
+              {virtualRows.map((virtualRow) => {
+                const gap = sortedGaps[virtualRow.index];
+                return (
+                  <TableRow
+                    key={`${gap.keyword}-${gap.competitorDomain}-${virtualRow.index}`}
+                    style={{
+                      height: `${virtualRow.size}px`,
+                      transform: `translateY(${virtualRow.start}px)`,
+                    }}
+                  >
+                    <TableCell className="font-medium">{gap.keyword}</TableCell>
+                    <TableCell className="text-muted-foreground">
+                      {gap.competitorDomain}
+                    </TableCell>
+                    <TableCell>{gap.competitorPosition}</TableCell>
+                    <TableCell>{gap.searchVolume.toLocaleString()}</TableCell>
+                    <TableCell>${gap.cpc.toFixed(2)}</TableCell>
+                    <TableCell>
+                      <DifficultyBadge difficulty={gap.difficulty} />
+                    </TableCell>
+                    <TableCell className="font-semibold text-primary">
+                      {gap.trafficPotential.toLocaleString()}
+                    </TableCell>
+                    <TableCell>
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              disabled
+                              onClick={() => onAddTarget?.(gap.keyword)}
+                              aria-label="Add to targets"
+                            >
+                              <Plus className="h-4 w-4" />
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            <p>Coming soon</p>
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
+            </TableBody>
+          </Table>
+        </div>
+      </div>
     </div>
   );
 }

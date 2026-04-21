@@ -6,7 +6,11 @@
  * Tests view tracking with IP hashing, session deduplication, and heartbeat.
  */
 
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+
+// Set IP_SALT for tests before any imports that use it
+const originalIpSalt = process.env.IP_SALT;
+process.env.IP_SALT = "test-ip-salt-for-unit-tests";
 
 // Mock nanoid
 vi.mock("nanoid", () => ({

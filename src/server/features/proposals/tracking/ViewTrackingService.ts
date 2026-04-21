@@ -17,6 +17,7 @@ import { AppError } from "@/server/lib/errors";
 import { createHash } from "crypto";
 import { nanoid } from "nanoid";
 import { createLogger } from "@/server/lib/logger";
+import { getRequiredEnvValueSync } from "@/server/lib/runtime-env";
 
 const log = createLogger({ module: "ViewTrackingService" });
 
@@ -35,7 +36,7 @@ export interface ViewTrackingInput {
  * Returns a 16-character truncated hash.
  */
 export function hashIpAddress(ipAddress: string): string {
-  const salt = process.env.IP_SALT ?? "default-salt-change-in-production";
+  const salt = getRequiredEnvValueSync("IP_SALT");
   const hash = createHash("sha256")
     .update(ipAddress + salt)
     .digest("hex")
