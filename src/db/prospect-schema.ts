@@ -14,6 +14,7 @@ import {
   index,
   uniqueIndex,
 } from "drizzle-orm/pg-core";
+import { relations } from "drizzle-orm";
 import { organization } from "./user-schema";
 
 // Status enum values
@@ -205,6 +206,22 @@ export const prospectAnalyses = pgTable(
     index("ix_analyses_status").on(table.status),
   ],
 );
+
+// Relations
+export const prospectsRelations = relations(prospects, ({ one, many }) => ({
+  workspace: one(organization, {
+    fields: [prospects.workspaceId],
+    references: [organization.id],
+  }),
+  analyses: many(prospectAnalyses),
+}));
+
+export const prospectAnalysesRelations = relations(prospectAnalyses, ({ one }) => ({
+  prospect: one(prospects, {
+    fields: [prospectAnalyses.prospectId],
+    references: [prospects.id],
+  }),
+}));
 
 // Inferred types for database operations
 export type ProspectSelect = typeof prospects.$inferSelect;
