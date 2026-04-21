@@ -1,147 +1,164 @@
 /**
- * Smart link detector for business-relevant pages.
+ * Link detection for business-relevant pages.
  *
- * Analyzes links from a homepage to identify canonical business pages:
- * - Products/Shop pages
- * - About pages
- * - Services pages
- * - Contact pages
- * - Category/Collection pages
- *
- * @module scraper/linkDetector
+ * Pattern matching for:
+ * - Products: /products, /shop, /store, /catalog, /buy
+ * - About: /about, /about-us, /company, /who-we-are, /our-story
+ * - Services: /services, /what-we-do, /solutions, /offerings
+ * - Contact: /contact, /contact-us, /get-in-touch
+ * - Categories: /category/*, /categories/*, /collections/*
  */
+
 import type { BusinessLinks } from "./types";
 
-/**
- * URL patterns for detecting business page types.
- * Patterns are matched case-insensitively against the URL pathname.
- */
-const PATTERNS = {
-  products: [
-    /^\/products\/?$/i,
-    /^\/shop\/?$/i,
-    /^\/store\/?$/i,
-    /^\/catalog\/?$/i,
-    /^\/buy\/?$/i,
-  ],
-  about: [
-    /^\/about\/?$/i,
-    /^\/about-us\/?$/i,
-    /^\/company\/?$/i,
-    /^\/who-we-are\/?$/i,
-    /^\/our-story\/?$/i,
-  ],
-  services: [
-    /^\/services\/?$/i,
-    /^\/what-we-do\/?$/i,
-    /^\/solutions\/?$/i,
-    /^\/offerings\/?$/i,
-  ],
-  contact: [
-    /^\/contact\/?$/i,
-    /^\/contact-us\/?$/i,
-    /^\/get-in-touch\/?$/i,
-    /^\/reach-us\/?$/i,
-  ],
-  category: [
-    /^\/category\/.+/i,
-    /^\/categories\/.+/i,
-    /^\/collections?\/.+/i,
-    /^\/c\/.+/i,
-  ],
-};
+// Pattern matching (case-insensitive)
+// Ordered by priority - exact matches first
+const PRODUCT_PATTERNS = [
+  /^\/products(\/|$|\?|#)/i, // Exact /products first
+  /^\/product(\/|$|\?|#)/i,  // Then /product
+  /^\/shop(\/|$|\?|#)/i,
+  /^\/store(\/|$|\?|#)/i,
+  /^\/catalog(\/|$|\?|#)/i,
+  /^\/buy(\/|$|\?|#)/i,
+];
 
-/** Maximum number of category URLs to return */
-const MAX_CATEGORIES = 5;
+const ABOUT_PATTERNS = [
+  /^\/about(\/|$|\?|#)/i,    // Exact /about first
+  /^\/about-us(\/|$|\?|#)/i,
+  /^\/company(\/|$|\?|#)/i,
+  /^\/who-we-are(\/|$|\?|#)/i,
+  /^\/our-story(\/|$|\?|#)/i,
+];
+
+const SERVICES_PATTERNS = [
+  /^\/services(\/|$|\?|#)/i, // Exact /services first
+  /^\/service(\/|$|\?|#)/i,  // Then /service
+  /^\/what-we-do(\/|$|\?|#)/i,
+  /^\/solutions(\/|$|\?|#)/i,
+  /^\/offerings(\/|$|\?|#)/i,
+];
+
+const CONTACT_PATTERNS = [
+  /^\/contact(\/|$|\?|#)/i,  // Exact /contact first
+  /^\/contact-us(\/|$|\?|#)/i,
+  /^\/get-in-touch(\/|$|\?|#)/i,
+];
+
+const CATEGORY_PATTERNS = [
+  /^\/categor(y|ies)\//i,
+  /^\/collections?\//i,
+];
 
 /**
- * Detect business-relevant links from a list of URLs.
- *
- * @param links - Array of href values from the page
- * @param baseUrl - Base URL of the page for resolving relative URLs
- * @returns BusinessLinks object with detected page URLs
+ * Normalize a URL to absolute form.
  */
-export function detectBusinessLinks(
-  links: string[],
-  baseUrl: string,
-): BusinessLinks {
-  const result: BusinessLinks = {
-    products: null,
-    about: null,
-    services: null,
-    contact: null,
-    categories: [],
-  };
-
-  // Normalize base URL (remove trailing slash for consistent joining)
-  const normalizedBase = baseUrl.endsWith("/")
-    ? baseUrl.slice(0, -1)
-    : baseUrl;
-
-  // Parse base URL to get the host for filtering external links
-  let baseHost: string;
+function normalizeUrl(link: string, baseUrl: string): string | null {
   try {
-    baseHost = new URL(normalizedBase).host;
+    // If already absolute, parse it
+    if (link.startsWith("http://") || link.startsWith("https://")) {
+      const url = new URL(link);
+      const base = new URL(baseUrl);
+
+      // Filter external domains
+      if (url.hostname !== base.hostname) {
+        return null;
+      }
+
+      return link;
+    }
+
+    // Relative URL - combine with base
+    const base = new URL(baseUrl);
+    const absolute = new URL(link, base);
+    return absolute.href;
   } catch {
-    return result; // Invalid base URL, return empty result
+    return null;
   }
+}
+
+/**
+ * Extract pathname from a URL for pattern matching.
+ */
+function extractPathname(url: string): string {
+  try {
+    if (url.startsWith("http://") || url.startsWith("https://")) {
+      return new URL(url).pathname;
+    }
+    // Already a pathname
+    return url.split("?")[0]?.split("#")[0] ?? url;
+  } catch {
+    return url;
+  }
+}
+
+/**
+ * Find first link matching any of the patterns.
+ * Prioritizes patterns in order - checks all links for pattern[0],
+ * then all links for pattern[1], etc.
+ */
+function findFirstMatch(
+  links: string[],
+  patterns: RegExp[],
+  baseUrl: string,
+): string | null {
+  // Check patterns in priority order
+  for (const pattern of patterns) {
+    for (const link of links) {
+      const pathname = extractPathname(link);
+
+      if (pattern.test(pathname)) {
+        const normalized = normalizeUrl(link, baseUrl);
+        if (normalized) {
+          return normalized;
+        }
+      }
+    }
+  }
+
+  return null;
+}
+
+/**
+ * Find all category links (limited to 3).
+ */
+function findCategories(links: string[], baseUrl: string): string[] {
+  const categories: string[] = [];
 
   for (const link of links) {
-    // Skip empty or invalid links
-    if (!link || link === "#") continue;
+    if (categories.length >= 3) break;
 
-    // Resolve relative URL to absolute
-    let absoluteUrl: string;
-    let parsedUrl: URL;
-    try {
-      parsedUrl = new URL(link, normalizedBase);
-      absoluteUrl = parsedUrl.href;
-    } catch {
-      continue; // Skip malformed URLs
-    }
+    const pathname = extractPathname(link);
 
-    // Filter external domains
-    if (parsedUrl.host !== baseHost) {
-      continue;
-    }
-
-    // Get pathname for pattern matching (without query/fragment for matching)
-    const pathname = parsedUrl.pathname;
-
-    // Check each page type
-    if (!result.products && matchesPatterns(pathname, PATTERNS.products)) {
-      result.products = absoluteUrl;
-    }
-
-    if (!result.about && matchesPatterns(pathname, PATTERNS.about)) {
-      result.about = absoluteUrl;
-    }
-
-    if (!result.services && matchesPatterns(pathname, PATTERNS.services)) {
-      result.services = absoluteUrl;
-    }
-
-    if (!result.contact && matchesPatterns(pathname, PATTERNS.contact)) {
-      result.contact = absoluteUrl;
-    }
-
-    // Category pages (collect up to MAX_CATEGORIES)
-    if (
-      result.categories.length < MAX_CATEGORIES &&
-      matchesPatterns(pathname, PATTERNS.category)
-    ) {
-      result.categories.push(absoluteUrl);
+    for (const pattern of CATEGORY_PATTERNS) {
+      if (pattern.test(pathname)) {
+        const normalized = normalizeUrl(link, baseUrl);
+        if (normalized) {
+          categories.push(normalized);
+          break; // Move to next link
+        }
+      }
     }
   }
 
-  return result;
+  return categories;
 }
 
 /**
- * Check if a pathname matches any of the given patterns.
+ * Detect business-relevant pages from internal links.
+ *
+ * @param internalLinks - List of internal links (relative or absolute)
+ * @param baseUrl - Base URL of the website
+ * @returns Business links organized by type
  */
-function matchesPatterns(pathname: string, patterns: RegExp[]): boolean {
-  return patterns.some((pattern) => pattern.test(pathname));
+export function detectBusinessLinks(
+  internalLinks: string[],
+  baseUrl: string,
+): BusinessLinks {
+  return {
+    products: findFirstMatch(internalLinks, PRODUCT_PATTERNS, baseUrl),
+    about: findFirstMatch(internalLinks, ABOUT_PATTERNS, baseUrl),
+    services: findFirstMatch(internalLinks, SERVICES_PATTERNS, baseUrl),
+    contact: findFirstMatch(internalLinks, CONTACT_PATTERNS, baseUrl),
+    categories: findCategories(internalLinks, baseUrl),
+  };
 }
-
-export type { BusinessLinks };

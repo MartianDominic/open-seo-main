@@ -16,6 +16,10 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [ ] **Phase 2: BullMQ + Redis KV Replacement** - Replace env.KV with ioredis and env.SITE_AUDIT_WORKFLOW with BullMQ; audit queue runs reliably in Node.js
 - [ ] **Phase 3: Docker Compose + Infrastructure Assembly** - Package the app in a production Dockerfile; wire all 7 services in docker-compose.vps.yml; verify manual VPS deployment
 - [ ] **Phase 4: CI/CD + Deployment Pipeline** - GitHub Actions auto-deploys both platforms on push to main with zero manual intervention
+- [x] **Phase 27: Website Scraping** - Scrape prospect websites, extract business info with AI (products, brands, services)
+- [ ] **Phase 28: Keyword Gap Analysis** - Identify keywords competitors rank for that prospect doesn't
+- [ ] **Phase 29: AI Opportunity Discovery** - Generate keyword opportunities from scraped content for zero-ranking sites
+- [ ] **Phase 30: Interactive Proposals** - Scrollytelling proposals, Lithuanian AI generation, Smart-ID signing, Stripe payments
 
 ## Phase Details
 
@@ -67,6 +71,53 @@ Decimal phases appear between their surrounding integers in numeric order.
   4. SSH access to the VPS uses a dedicated `deploy` user (not root) with an ed25519 key stored as a GitHub Actions secret
 **Plans**: TBD
 
+### Phase 27: Website Scraping
+**Goal**: Scrape prospect websites and extract business information using AI
+**Depends on**: Phase 26 (Prospect Data Model)
+**Success Criteria** (what must be TRUE):
+  1. DataForSEO raw_html endpoint fetches rendered HTML for prospect domains
+  2. Multi-page scraper visits homepage + key business pages (products, services, about)
+  3. AI business extractor (Claude) identifies products, brands, services, location, target market
+  4. Scraped content and business info stored in analysis record
+  5. Manual business info form allows user override
+**Plans**: 27-01, 27-02, 27-03
+**Status**: Complete
+
+### Phase 28: Keyword Gap Analysis
+**Goal**: Identify keywords competitors rank for that the prospect doesn't
+**Depends on**: Phase 27
+**Success Criteria** (what must be TRUE):
+  1. Competitors auto-discovered via DataForSEO
+  2. Domain intersection API returns gap keywords
+  3. Top 100 gap keywords stored with volume, CPC, difficulty
+  4. Gap analysis UI displays sortable keyword table
+**Plans**: 28-01
+
+### Phase 29: AI Opportunity Discovery
+**Goal**: Generate keyword opportunities from scraped business content for zero-ranking sites
+**Depends on**: Phase 27, Phase 28
+**Success Criteria** (what must be TRUE):
+  1. AI generates keyword ideas from products, brands, services
+  2. DataForSEO validates keywords (filters zero-volume)
+  3. Opportunity scoring ranks keywords by potential
+  4. UI shows categorized opportunities
+**Plans**: 29-01
+
+### Phase 30: Interactive Proposals
+**Goal**: One link → signed paying client with zero manual work
+**Depends on**: Phase 27, Phase 28, Phase 29
+**Success Criteria** (what must be TRUE):
+  1. Proposal schema stores content, pricing, status state machine
+  2. Gemini 3.1 Pro generates Lithuanian proposal text (segment-by-segment)
+  3. Scrollytelling proposal page with ROI calculator
+  4. View tracking and engagement signals
+  5. Dokobit Smart-ID/Mobile-ID signing integration
+  6. Stripe payment checkout
+  7. Auto-onboarding creates client, project, sends GSC invite
+  8. Pipeline view with automated follow-ups
+**Plans**: 30-01, 30-02, 30-03, 30-04, 30-05, 30-06, 30-07, 30-08
+**UI hint**: yes
+
 ## Progress
 
 **Execution Order:**
@@ -78,3 +129,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4
 | 2. BullMQ + Redis KV Replacement | 0/TBD | Not started | - |
 | 3. Docker Compose + Infrastructure Assembly | 0/TBD | Not started | - |
 | 4. CI/CD + Deployment Pipeline | 0/TBD | Not started | - |
+| 27. Website Scraping | 3/3 | Complete | 2026-04-21 |
+| 28. Keyword Gap Analysis | 0/1 | Not started | - |
+| 29. AI Opportunity Discovery | 0/1 | Not started | - |
+| 30. Interactive Proposals | 0/8 | Not started | - |

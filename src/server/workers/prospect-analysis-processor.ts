@@ -19,6 +19,11 @@ import {
 } from "@/server/features/prospects/services/AnalysisService";
 import type { ProspectAnalysisJobData } from "@/server/queues/prospectAnalysisQueue";
 import { createLogger } from "@/server/lib/logger";
+import { scrapeProspectSite } from "@/server/lib/scraper/multiPageScraper";
+import {
+  extractBusinessInfo,
+  type ScrapedContent,
+} from "@/server/lib/scraper/businessExtractor";
 
 const log = createLogger({ module: "prospect-analysis-processor" });
 
@@ -130,12 +135,52 @@ export default async function processProspectAnalysis(
 
     const competitorDomains = competitorsResult.data.map((item) => item.domain);
 
+    // Step 4: Website scraping and business info extraction
+    let scrapedContent: ScrapedContent | undefined;
+    try {
+      log.info("Scraping prospect website", { domain });
+      const multiPageResult = await scrapeProspectSite(domain);
+
+      // Combine homepage and additional pages into single array
+      const allPages = [multiPageResult.homepage, ...multiPageResult.additionalPages];
+
+      if (allPages.length > 0) {
+        log.info("Extracting business information", { domain, pageCount: allPages.length });
+        const businessInfo = await extractBusinessInfo(allPages, domain);
+
+        scrapedContent = {
+          pages: allPages,
+          businessLinks: multiPageResult.businessLinks,
+          businessInfo,
+          totalCostCents: multiPageResult.totalCostCents,
+          scrapedAt: new Date().toISOString(),
+        };
+
+        totalCostCents += multiPageResult.totalCostCents;
+
+        log.info("Business info extracted successfully", {
+          domain,
+          productsCount: businessInfo.products.length,
+          brandsCount: businessInfo.brands.length,
+          servicesCount: businessInfo.services.length,
+          confidence: businessInfo.confidence,
+        });
+      }
+    } catch (error) {
+      log.warn("Website scraping failed, continuing without scraped data", {
+        domain,
+        error: error instanceof Error ? error.message : String(error),
+      });
+      // Continue without scraped content - it's not critical for the analysis
+    }
+
     // Update analysis with results
     await AnalysisService.updateAnalysisResult(analysisId, {
       domainMetrics,
       organicKeywords,
       competitorDomains,
       competitorKeywords: [], // Would need domain intersection API for full gap analysis
+      scrapedContent,
       costCents: totalCostCents,
     });
 

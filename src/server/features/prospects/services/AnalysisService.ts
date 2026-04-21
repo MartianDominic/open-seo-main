@@ -14,6 +14,7 @@ import {
   type DomainMetrics,
   type OrganicKeywordItem,
   type CompetitorKeywordItem,
+  type ScrapedContent,
 } from "@/db/prospect-schema";
 import {
   submitProspectAnalysis,
@@ -58,6 +59,7 @@ export interface AnalysisResults {
   organicKeywords?: OrganicKeywordItem[];
   competitorDomains?: string[];
   competitorKeywords?: CompetitorKeywordItem[];
+  scrapedContent?: ScrapedContent;
   costCents: number;
 }
 
@@ -168,6 +170,7 @@ export const AnalysisService = {
         organicKeywords: results.organicKeywords,
         competitorDomains: results.competitorDomains,
         competitorKeywords: results.competitorKeywords,
+        scrapedContent: results.scrapedContent,
         costCents: results.costCents,
         completedAt: now,
       })

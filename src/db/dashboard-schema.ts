@@ -10,7 +10,6 @@ import {
   timestamp,
   jsonb,
   index,
-  uniqueIndex,
   numeric,
 } from "drizzle-orm/pg-core";
 
@@ -107,3 +106,60 @@ export type PortfolioActivitySelect = typeof portfolioActivity.$inferSelect;
 export type PortfolioActivityInsert = typeof portfolioActivity.$inferInsert;
 export type DashboardViewSelect = typeof dashboardViews.$inferSelect;
 export type DashboardViewInsert = typeof dashboardViews.$inferInsert;
+
+/**
+ * Pre-computed portfolio-level aggregates.
+ * Updated by worker every 5 minutes.
+ * Phase 23: Performance & Scale
+ */
+export const portfolioAggregates = pgTable(
+  "portfolio_aggregates",
+  {
+    id: text("id").primaryKey(),
+    workspaceId: text("workspace_id").notNull().unique(),
+
+    // Client counts
+    totalClients: integer("total_clients").default(0),
+    clientsOnTrack: integer("clients_on_track").default(0), // Goal >= 80%
+    clientsWatching: integer("clients_watching").default(0), // Goal 60-79%
+    clientsCritical: integer("clients_critical").default(0), // Goal < 60%
+    clientsNoGoals: integer("clients_no_goals").default(0),
+
+    // Goal aggregates
+    totalGoals: integer("total_goals").default(0),
+    goalsMet: integer("goals_met").default(0),
+    avgGoalAttainment: numeric("avg_goal_attainment"),
+    avgGoalAttainmentTrend: numeric("avg_goal_attainment_trend"),
+
+    // Traffic aggregates
+    totalClicks30d: integer("total_clicks_30d").default(0),
+    totalImpressions30d: integer("total_impressions_30d").default(0),
+    avgCtr: numeric("avg_ctr"),
+    totalClicksTrend: numeric("total_clicks_trend"), // % change WoW
+
+    // Keyword aggregates
+    totalKeywordsTracked: integer("total_keywords_tracked").default(0),
+    keywordsTop10: integer("keywords_top_10").default(0),
+    keywordsTop3: integer("keywords_top_3").default(0),
+    keywordsPosition1: integer("keywords_position_1").default(0),
+    keywordsTop10Trend: integer("keywords_top_10_trend").default(0),
+
+    // Alert aggregates
+    alertsCriticalTotal: integer("alerts_critical_total").default(0),
+    alertsWarningTotal: integer("alerts_warning_total").default(0),
+    clientsWithCriticalAlerts: integer("clients_with_critical_alerts").default(0),
+
+    // Team metrics
+    unassignedClients: integer("unassigned_clients").default(0),
+    avgDaysSinceTouch: numeric("avg_days_since_touch"),
+    clientsNeglected: integer("clients_neglected").default(0), // > 7 days
+
+    // Computation metadata
+    computedAt: timestamp("computed_at", { withTimezone: true, mode: "date" }).defaultNow(),
+    computationDurationMs: integer("computation_duration_ms"),
+  },
+  (table) => [index("idx_portfolio_aggregates_workspace").on(table.workspaceId)],
+);
+
+export type PortfolioAggregatesSelect = typeof portfolioAggregates.$inferSelect;
+export type PortfolioAggregatesInsert = typeof portfolioAggregates.$inferInsert;

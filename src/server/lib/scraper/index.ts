@@ -1,31 +1,15 @@
 /**
- * Web scraper module for prospect website analysis.
- *
- * Provides tools for:
- * - Scraping static HTML pages (Cheerio-based)
- * - Detecting business-relevant links
- * - Extracting structured content
- *
- * @module scraper
+ * Prospect website scraping via DataForSEO.
  */
 
-// Types
-export type {
-  ScrapedPage,
-  ScrapeOptions,
-  ScrapeError,
-  ScrapeErrorCode,
-  BusinessLinks,
-  ExtractedContent,
-  Heading,
-} from "./types";
-export { DEFAULT_SCRAPE_OPTIONS } from "./types";
-
-// Cheerio scraper
-export { scrapeUrl } from "./cheerioScraper";
-
-// Link detector
+export { fetchRawHtml, scrapeProspectPage } from "./dataforseoScraper";
 export { detectBusinessLinks } from "./linkDetector";
-
-// Content extractor
-export { extractContent } from "./contentExtractor";
+export { scrapeProspectSite } from "./multiPageScraper";
+export type {
+  ScrapeResult,
+  ScrapeError,
+  ScrapeResponse,
+  RawHtmlResult,
+  BusinessLinks,
+  MultiPageScrapeResult,
+} from "./types";

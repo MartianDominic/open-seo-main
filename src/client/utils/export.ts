@@ -1,0 +1,82 @@
+/**
+ * CSV export utilities for keyword gap analysis
+ * Phase 28: Keyword Gap Analysis UI
+ */
+import type { KeywordGap } from "@/db/prospect-schema";
+
+/**
+ * Escapes a CSV field value by wrapping it in quotes if it contains commas
+ */
+function escapeCsvField(value: string | number): string {
+  const stringValue = String(value);
+  if (stringValue.includes(",")) {
+    return `"${stringValue}"`;
+  }
+  return stringValue;
+}
+
+/**
+ * Generates a CSV string from keyword gap data
+ * @param gaps - Array of keyword gaps to export
+ * @returns CSV string with headers and data rows
+ */
+export function exportKeywordGaps(gaps: KeywordGap[]): string {
+  const headers = [
+    "Keyword",
+    "Competitor",
+    "Position",
+    "Search Volume",
+    "CPC",
+    "Difficulty",
+    "Opportunity Score",
+  ];
+
+  const rows = gaps.map((gap) => [
+    escapeCsvField(gap.keyword),
+    gap.competitorDomain,
+    gap.competitorPosition,
+    gap.searchVolume,
+    gap.cpc.toFixed(2),
+    gap.difficulty,
+    gap.trafficPotential,
+  ]);
+
+  const csvLines = [
+    headers.join(","),
+    ...rows.map((row) => row.join(",")),
+  ];
+
+  return csvLines.join("\n");
+}
+
+/**
+ * Triggers a browser download of CSV data
+ * @param csvContent - CSV string content
+ * @param filename - Name of the file to download
+ */
+export function downloadCsv(csvContent: string, filename: string): void {
+  const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+  const link = document.createElement("a");
+  const url = URL.createObjectURL(blob);
+
+  link.setAttribute("href", url);
+  link.setAttribute("download", filename);
+  link.style.visibility = "hidden";
+
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+
+  URL.revokeObjectURL(url);
+}
+
+/**
+ * Generates a filename for keyword gap export
+ * @param domain - Prospect domain
+ * @returns Filename in format: keyword-gaps-{domain}-{date}.csv
+ */
+export function generateExportFilename(domain: string): string {
+  const date = new Date().toISOString().split("T")[0];
+  const sanitizedDomain = domain.replace(/[^a-z0-9]/gi, "-").toLowerCase();
+  return `keyword-gaps-${sanitizedDomain}-${date}.csv`;
+}
