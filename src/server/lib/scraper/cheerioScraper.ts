@@ -80,7 +80,7 @@ export async function scrapeUrl(
     // Extract headings (h1-h6)
     const headings: { level: number; text: string }[] = [];
     $("h1, h2, h3, h4, h5, h6").each((_, el) => {
-      const tagName = (el as cheerio.TagElement).tagName.toLowerCase();
+      const tagName = (el as { tagName: string }).tagName.toLowerCase();
       const level = parseInt(tagName.replace("h", ""), 10);
       const text = $(el).text().trim();
       if (text) {
