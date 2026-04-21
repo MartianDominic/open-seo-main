@@ -110,6 +110,27 @@ export interface ScrapedContent {
   scrapedAt: string;
 }
 
+// Opportunity keyword type (Phase 29: AI Opportunity Discovery)
+export const OPPORTUNITY_KEYWORD_CATEGORIES = [
+  "product",
+  "brand",
+  "service",
+  "commercial",
+  "informational",
+] as const;
+export type OpportunityKeywordCategory =
+  (typeof OPPORTUNITY_KEYWORD_CATEGORIES)[number];
+
+export interface OpportunityKeyword {
+  keyword: string;
+  category: OpportunityKeywordCategory;
+  searchVolume: number;
+  cpc: number;
+  difficulty: number;
+  opportunityScore: number;
+  source: "ai_generated";
+}
+
 /**
  * Prospects table - potential clients stored by domain.
  * One prospect per domain per workspace (unique constraint).
@@ -171,6 +192,7 @@ export const prospectAnalyses = pgTable(
       CompetitorKeywordItem[]
     >(),
     keywordGaps: jsonb("keyword_gaps").$type<KeywordGap[]>(),
+    opportunityKeywords: jsonb("opportunity_keywords").$type<OpportunityKeyword[]>(),
     scrapedContent: jsonb("scraped_content").$type<ScrapedContent>(),
     costCents: integer("cost_cents").default(0),
     createdAt: timestamp("created_at", { withTimezone: true, mode: "date" })
