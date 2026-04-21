@@ -38,6 +38,17 @@ import {
   type CompetitorsDomainItem,
 } from "@/server/lib/dataforseoProspect";
 import {
+  fetchDomainIntersectionRaw,
+  type DomainIntersectionInput,
+} from "@/server/lib/dataforseoKeywordGap";
+import type { KeywordGap } from "@/db/prospect-schema";
+import {
+  fetchRawHtml as fetchRawHtmlRaw,
+  scrapeProspectPage as scrapeProspectPageRaw,
+  type RawHtmlResult,
+  type ScrapeResponse,
+} from "@/server/lib/scraper";
+import {
   type DataforseoApiResponse,
   type DataforseoApiCallCost,
 } from "@/server/lib/dataforseoCost";
@@ -248,6 +259,35 @@ export function createDataforseoClient(customer: BillingCustomerContext) {
           }),
         );
       },
+      domainIntersection(input: {
+        target1: string;
+        target2: string;
+        locationCode: number;
+        languageCode: string;
+        limit?: number;
+      }) {
+        return meterDataforseoCall<KeywordGap[]>(customer, () =>
+          fetchDomainIntersectionRaw({
+            target1: input.target1,
+            target2: input.target2,
+            locationCode: input.locationCode,
+            languageCode: input.languageCode,
+            limit: input.limit,
+          }),
+        );
+      },
+    },
+    onPage: {
+      fetchRawHtml(input: { url: string }) {
+        return meterDataforseoCall<RawHtmlResult>(customer, () =>
+          fetchRawHtmlRaw(input.url),
+        );
+      },
+      scrapePage(input: { url: string }) {
+        // Note: scrapeProspectPage handles its own error wrapping and cost tracking
+        // For metered calls, we need to unwrap the response
+        return scrapeProspectPageRaw(input.url);
+      },
     },
   } as const;
 }
@@ -375,4 +415,5 @@ export type {
   SerpLiveItem,
   KeywordsForSiteItem,
   CompetitorsDomainItem,
+  KeywordGap,
 };

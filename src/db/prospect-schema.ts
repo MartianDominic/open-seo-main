@@ -70,6 +70,46 @@ export interface CompetitorKeywordItem {
   competitorPosition: number;
 }
 
+// Keyword gap item type (Phase 28)
+export interface KeywordGap {
+  keyword: string;
+  competitorDomain: string;
+  competitorPosition: number;
+  searchVolume: number;
+  cpc: number;
+  difficulty: number;
+  trafficPotential: number;
+}
+
+// Scraped content type (from businessExtractor)
+export interface ScrapedContent {
+  pages: Array<{
+    url: string;
+    title: string;
+    metaDescription: string;
+    h1s: string[];
+    wordCount: number;
+  }>;
+  businessLinks: {
+    products: string | null;
+    about: string | null;
+    services: string | null;
+    contact: string | null;
+    categories: string[];
+  } | null;
+  businessInfo: {
+    products: string[];
+    brands: string[];
+    services: string[];
+    location: string | null;
+    targetMarket: "residential" | "commercial" | "both" | null;
+    summary: string;
+    confidence: number;
+  } | null;
+  totalCostCents: number;
+  scrapedAt: string;
+}
+
 /**
  * Prospects table - potential clients stored by domain.
  * One prospect per domain per workspace (unique constraint).
@@ -130,6 +170,8 @@ export const prospectAnalyses = pgTable(
     competitorKeywords: jsonb("competitor_keywords").$type<
       CompetitorKeywordItem[]
     >(),
+    keywordGaps: jsonb("keyword_gaps").$type<KeywordGap[]>(),
+    scrapedContent: jsonb("scraped_content").$type<ScrapedContent>(),
     costCents: integer("cost_cents").default(0),
     createdAt: timestamp("created_at", { withTimezone: true, mode: "date" })
       .notNull()

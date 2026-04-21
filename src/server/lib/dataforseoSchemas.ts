@@ -376,3 +376,93 @@ export const competitorsDomainItemSchema = z
   .passthrough();
 
 export type CompetitorsDomainItem = z.infer<typeof competitorsDomainItemSchema>;
+
+// ============================================================================
+// Domain Intersection API (keyword gap analysis)
+// ============================================================================
+
+/**
+ * Schema for items returned by /v3/dataforseo_labs/google/domain_intersection/live
+ * Each item represents a keyword where domain 1 ranks but domain 2 doesn't (a gap).
+ */
+export const domainIntersectionItemSchema = z
+  .object({
+    keyword_data: z
+      .object({
+        keyword: z.string(),
+        keyword_info: z
+          .object({
+            search_volume: z.number().nullable().optional(),
+            cpc: z.number().nullable().optional(),
+          })
+          .nullable()
+          .optional(),
+        keyword_properties: z
+          .object({
+            keyword_difficulty: z.number().nullable().optional(),
+          })
+          .nullable()
+          .optional(),
+      })
+      .nullable()
+      .optional(),
+    domain_1_ranked_serp_element: z
+      .object({
+        rank_absolute: z.number().nullable().optional(),
+      })
+      .nullable()
+      .optional(),
+    domain_2_ranked_serp_element: z
+      .object({
+        rank_absolute: z.number().nullable().optional(),
+      })
+      .nullable()
+      .optional(),
+  })
+  .passthrough();
+
+export type DomainIntersectionItem = z.infer<typeof domainIntersectionItemSchema>;
+
+// ============================================================================
+// On-Page Content Parsing Live API (for raw HTML scraping)
+// ============================================================================
+
+/**
+ * Schema for response from /v3/on_page/content_parsing/live
+ * Returns a task ID that can be used to fetch raw HTML
+ */
+export const onPageContentParsingLiveItemSchema = z
+  .object({
+    id: z.string(),
+    status_code: z.number().optional(),
+    status_message: z.string().optional(),
+  })
+  .passthrough();
+
+export type OnPageContentParsingLiveItem = z.infer<
+  typeof onPageContentParsingLiveItemSchema
+>;
+
+// ============================================================================
+// On-Page Raw HTML API
+// ============================================================================
+
+/**
+ * Schema for items returned by /v3/on_page/raw_html
+ * Returns raw HTML and metadata for a previously parsed page
+ */
+export const onPageRawHtmlItemSchema = z
+  .object({
+    html: z.string(),
+    status_code: z.number(),
+    page_timing: z
+      .object({
+        time_to_interactive: z.number().nullable().optional(),
+      })
+      .nullable()
+      .optional(),
+    redirect_url: z.string().nullable().optional(),
+  })
+  .passthrough();
+
+export type OnPageRawHtmlItem = z.infer<typeof onPageRawHtmlItemSchema>;
