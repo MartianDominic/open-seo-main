@@ -13,6 +13,13 @@ import { z } from "zod";
 import type { PageAnalysis } from "@/server/lib/audit/types";
 import { createLogger } from "@/server/lib/logger";
 
+/** Claude model to use for business extraction */
+const CLAUDE_MODEL =
+  process.env.CLAUDE_MODEL_BUSINESS_EXTRACTOR || "claude-3-5-sonnet-20241022";
+
+/** Maximum tokens for Claude response */
+const MAX_TOKENS = 2048;
+
 const log = createLogger({ module: "business-extractor" });
 
 // Zod schema for validation
@@ -83,8 +90,8 @@ export async function extractBusinessInfo(
     const anthropic = new Anthropic({ apiKey });
 
     const response = await anthropic.messages.create({
-      model: "claude-3-5-sonnet-20241022",
-      max_tokens: 2048,
+      model: CLAUDE_MODEL,
+      max_tokens: MAX_TOKENS,
       messages: [
         {
           role: "user",

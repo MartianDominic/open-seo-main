@@ -36,6 +36,46 @@ import { DifficultyBadge } from "./DifficultyBadge";
 import { ChevronUp, ChevronDown, Plus, Sparkles } from "lucide-react";
 import type { OpportunityKeyword, OpportunityKeywordCategory } from "@/db/prospect-schema";
 
+/**
+ * Props for SortableHeader component
+ */
+interface SortableHeaderProps {
+  column: OpportunitySortColumn;
+  sortColumn: OpportunitySortColumn;
+  sortDirection: SortDirection;
+  onSort: (column: OpportunitySortColumn) => void;
+  children: React.ReactNode;
+}
+
+/**
+ * Sortable table header cell component.
+ * Extracted to module level to avoid recreation on every render.
+ */
+function SortableHeader({
+  column,
+  sortColumn,
+  sortDirection,
+  onSort,
+  children,
+}: SortableHeaderProps) {
+  return (
+    <TableHead
+      className="cursor-pointer select-none hover:bg-muted/50"
+      onClick={() => onSort(column)}
+    >
+      <div className="flex items-center gap-1">
+        {children}
+        {sortColumn === column &&
+          (sortDirection === "asc" ? (
+            <ChevronUp className="h-4 w-4" />
+          ) : (
+            <ChevronDown className="h-4 w-4" />
+          ))}
+      </div>
+    </TableHead>
+  );
+}
+
 // Sortable columns
 export type OpportunitySortColumn =
   | "keyword"
@@ -196,29 +236,6 @@ export function OpportunityKeywordsTable({
     setCategoryFilter(value === "all" ? null : (value as OpportunityKeywordCategory));
   };
 
-  const SortableHeader = ({
-    column,
-    children,
-  }: {
-    column: OpportunitySortColumn;
-    children: React.ReactNode;
-  }) => (
-    <TableHead
-      className="cursor-pointer select-none hover:bg-muted/50"
-      onClick={() => handleSort(column)}
-    >
-      <div className="flex items-center gap-1">
-        {children}
-        {sortColumn === column &&
-          (sortDirection === "asc" ? (
-            <ChevronUp className="h-4 w-4" />
-          ) : (
-            <ChevronDown className="h-4 w-4" />
-          ))}
-      </div>
-    </TableHead>
-  );
-
   if (keywords.length === 0) {
     return (
       <div className="text-center py-8 text-muted-foreground">
@@ -232,8 +249,9 @@ export function OpportunityKeywordsTable({
   }
 
   return (
-    <div className="space-y-4">
-      {/* Category filter */}
+    <TooltipProvider>
+      <div className="space-y-4">
+        {/* Category filter */}
       <div className="flex items-center gap-2">
         <span className="text-sm text-muted-foreground">Filter by category:</span>
         <Select
@@ -262,12 +280,12 @@ export function OpportunityKeywordsTable({
         <Table>
           <TableHeader>
             <TableRow>
-              <SortableHeader column="keyword">Keyword</SortableHeader>
-              <SortableHeader column="category">Category</SortableHeader>
-              <SortableHeader column="searchVolume">Volume</SortableHeader>
-              <SortableHeader column="cpc">CPC</SortableHeader>
-              <SortableHeader column="difficulty">Difficulty</SortableHeader>
-              <SortableHeader column="opportunityScore">
+              <SortableHeader column="keyword" sortColumn={sortColumn} sortDirection={sortDirection} onSort={handleSort}>Keyword</SortableHeader>
+              <SortableHeader column="category" sortColumn={sortColumn} sortDirection={sortDirection} onSort={handleSort}>Category</SortableHeader>
+              <SortableHeader column="searchVolume" sortColumn={sortColumn} sortDirection={sortDirection} onSort={handleSort}>Volume</SortableHeader>
+              <SortableHeader column="cpc" sortColumn={sortColumn} sortDirection={sortDirection} onSort={handleSort}>CPC</SortableHeader>
+              <SortableHeader column="difficulty" sortColumn={sortColumn} sortDirection={sortDirection} onSort={handleSort}>Difficulty</SortableHeader>
+              <SortableHeader column="opportunityScore" sortColumn={sortColumn} sortDirection={sortDirection} onSort={handleSort}>
                 Opportunity
               </SortableHeader>
               <TableHead className="w-[60px]">Action</TableHead>
@@ -294,30 +312,29 @@ export function OpportunityKeywordsTable({
                   {keyword.opportunityScore.toLocaleString()}
                 </TableCell>
                 <TableCell>
-                  <TooltipProvider>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          disabled
-                          onClick={() => onAddToProposal?.(keyword.keyword)}
-                          aria-label="Add to proposal"
-                        >
-                          <Plus className="h-4 w-4" />
-                        </Button>
-                      </TooltipTrigger>
-                      <TooltipContent>
-                        <p>Coming soon</p>
-                      </TooltipContent>
-                    </Tooltip>
-                  </TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        disabled
+                        onClick={() => onAddToProposal?.(keyword.keyword)}
+                        aria-label="Add to proposal"
+                      >
+                        <Plus className="h-4 w-4" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>Coming soon</p>
+                    </TooltipContent>
+                  </Tooltip>
                 </TableCell>
               </TableRow>
             ))}
           </TableBody>
         </Table>
       </div>
-    </div>
+      </div>
+    </TooltipProvider>
   );
 }

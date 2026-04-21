@@ -27,11 +27,70 @@ vi.mock("@/server/lib/logger", () => ({
   }),
 }));
 
+// Mock rank events service
+vi.mock("@/services/rank-events", () => ({
+  recordDropEvent: vi.fn().mockResolvedValue(undefined),
+}));
+
+// Import modules after mocks are set up
+import { db } from "@/db";
+import { fetchLiveSerpItemsRaw } from "@/server/lib/dataforseo";
+import processRankingJob from "./ranking-processor";
+
+/**
+ * Helper to set up mock db.select chain for keyword queries.
+ * Handles two query patterns:
+ * 1. Batch query: select().from().innerJoin().where().limit().offset()
+ * 2. getPreviousPosition: select().from().where().orderBy().limit()
+ */
+function setupSelectMock(keywordsBatches: Array<unknown[]>) {
+  let batchIndex = 0;
+
+  // For batch query: limit().offset() returns results
+  const mockOffset = vi.fn().mockImplementation(() => {
+    const result = keywordsBatches[batchIndex] ?? [];
+    batchIndex++;
+    return Promise.resolve(result);
+  });
+
+  // Create a limit mock that works for both patterns:
+  // - When called from batch query path (via innerJoin), return { offset }
+  // - When called from getPreviousPosition path (via orderBy), return empty array Promise
+  const mockLimitForBatch = vi.fn().mockReturnValue({ offset: mockOffset });
+  const mockLimitForPreviousPosition = vi.fn().mockResolvedValue([]);
+
+  // orderBy is only called by getPreviousPosition, so its limit returns a Promise
+  const mockOrderBy = vi.fn().mockReturnValue({ limit: mockLimitForPreviousPosition });
+
+  // where can be called from both paths
+  const mockWhereForBatch = vi.fn().mockReturnValue({ limit: mockLimitForBatch });
+  const mockWhereForPreviousPosition = vi.fn().mockReturnValue({ orderBy: mockOrderBy });
+
+  // innerJoin is only called by batch query
+  const mockInnerJoin = vi.fn().mockReturnValue({ where: mockWhereForBatch });
+
+  // from: innerJoin path for batch, where path for getPreviousPosition
+  const mockFrom = vi.fn().mockReturnValue({ innerJoin: mockInnerJoin, where: mockWhereForPreviousPosition });
+
+  vi.mocked(db.select).mockReturnValue({ from: mockFrom } as never);
+  return { mockLimit: mockLimitForBatch, mockOffset };
+}
+
+/**
+ * Helper to set up mock db.insert chain.
+ */
+function setupInsertMock(captureArray?: unknown[]) {
+  const mockValues = vi.fn().mockImplementation((values) => {
+    captureArray?.push(values);
+    return Promise.resolve([{}]);
+  });
+  vi.mocked(db.insert).mockReturnValue({ values: mockValues } as never);
+  return { mockValues };
+}
+
 describe("ranking-processor", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    vi.useFakeTimers();
-    vi.setSystemTime(new Date("2026-04-19T03:00:00Z"));
   });
 
   afterEach(() => {
@@ -40,16 +99,7 @@ describe("ranking-processor", () => {
 
   describe("processRankingJob", () => {
     it("should query savedKeywords where trackingEnabled=true", async () => {
-      const { db } = await import("@/db");
-      const processRankingJob = (await import("./ranking-processor")).default;
-
-      // Setup mock chain for empty result
-      const mockOffset = vi.fn().mockResolvedValue([]);
-      const mockLimit = vi.fn().mockReturnValue({ offset: mockOffset });
-      const mockWhere = vi.fn().mockReturnValue({ limit: mockLimit });
-      const mockInnerJoin = vi.fn().mockReturnValue({ where: mockWhere });
-      const mockFrom = vi.fn().mockReturnValue({ innerJoin: mockInnerJoin });
-      vi.mocked(db.select).mockReturnValue({ from: mockFrom } as never);
+      setupSelectMock([[]]);
 
       const job = {
         id: "job-1",
@@ -62,20 +112,7 @@ describe("ranking-processor", () => {
     });
 
     it("should process keywords in batches of 100", async () => {
-      const { db } = await import("@/db");
-      const processRankingJob = (await import("./ranking-processor")).default;
-
-      // First batch returns 100, second returns empty
-      let callCount = 0;
-      const mockOffset = vi.fn().mockImplementation(() => {
-        callCount++;
-        return Promise.resolve(callCount === 1 ? [] : []);
-      });
-      const mockLimit = vi.fn().mockReturnValue({ offset: mockOffset });
-      const mockWhere = vi.fn().mockReturnValue({ limit: mockLimit });
-      const mockInnerJoin = vi.fn().mockReturnValue({ where: mockWhere });
-      const mockFrom = vi.fn().mockReturnValue({ innerJoin: mockInnerJoin });
-      vi.mocked(db.select).mockReturnValue({ from: mockFrom } as never);
+      const { mockLimit } = setupSelectMock([[]]);
 
       const job = {
         id: "job-1",
@@ -84,15 +121,10 @@ describe("ranking-processor", () => {
 
       await processRankingJob(job);
 
-      // Verify limit(100) was called
       expect(mockLimit).toHaveBeenCalledWith(100);
     });
 
     it("should call fetchLiveSerpItemsRaw for each keyword", async () => {
-      const { db } = await import("@/db");
-      const { fetchLiveSerpItemsRaw } = await import("@/server/lib/dataforseo");
-      const processRankingJob = (await import("./ranking-processor")).default;
-
       const mockKeywords = [
         {
           id: "kw-1",
@@ -100,31 +132,21 @@ describe("ranking-processor", () => {
           locationCode: 2840,
           languageCode: "en",
           projectDomain: "example.com",
+          projectId: "proj-1",
+          clientId: "client-1",
+          dropAlertThreshold: 5,
         },
       ];
 
-      let callCount = 0;
-      const mockOffset = vi.fn().mockImplementation(() => {
-        callCount++;
-        return Promise.resolve(callCount === 1 ? mockKeywords : []);
-      });
-      const mockLimit = vi.fn().mockReturnValue({ offset: mockOffset });
-      const mockWhere = vi.fn().mockReturnValue({ limit: mockLimit });
-      const mockInnerJoin = vi.fn().mockReturnValue({ where: mockWhere });
-      const mockFrom = vi.fn().mockReturnValue({ innerJoin: mockInnerJoin });
-      vi.mocked(db.select).mockReturnValue({ from: mockFrom } as never);
+      setupSelectMock([mockKeywords, []]);
+      setupInsertMock();
 
-      // Mock SERP response
       vi.mocked(fetchLiveSerpItemsRaw).mockResolvedValue({
         data: [
           { type: "organic", rank_absolute: 5, url: "https://example.com/page", domain: "example.com" },
         ],
         billing: { path: ["serp"], costUsd: 0.01, resultCount: 1 },
       });
-
-      // Mock insert for rankings
-      const mockValues = vi.fn().mockResolvedValue([{}]);
-      vi.mocked(db.insert).mockReturnValue({ values: mockValues } as never);
 
       const job = {
         id: "job-1",
@@ -137,10 +159,6 @@ describe("ranking-processor", () => {
     });
 
     it("should extract position from organic results matching domain", async () => {
-      const { db } = await import("@/db");
-      const { fetchLiveSerpItemsRaw } = await import("@/server/lib/dataforseo");
-      const processRankingJob = (await import("./ranking-processor")).default;
-
       const mockKeywords = [
         {
           id: "kw-1",
@@ -148,19 +166,14 @@ describe("ranking-processor", () => {
           locationCode: 2840,
           languageCode: "en",
           projectDomain: "example.com",
+          projectId: "proj-1",
+          clientId: "client-1",
+          dropAlertThreshold: 5,
         },
       ];
 
-      let callCount = 0;
-      const mockOffset = vi.fn().mockImplementation(() => {
-        callCount++;
-        return Promise.resolve(callCount === 1 ? mockKeywords : []);
-      });
-      const mockLimit = vi.fn().mockReturnValue({ offset: mockOffset });
-      const mockWhere = vi.fn().mockReturnValue({ limit: mockLimit });
-      const mockInnerJoin = vi.fn().mockReturnValue({ where: mockWhere });
-      const mockFrom = vi.fn().mockReturnValue({ innerJoin: mockInnerJoin });
-      vi.mocked(db.select).mockReturnValue({ from: mockFrom } as never);
+      // Keywords batch, then empty (end loop), then getPreviousPosition returns empty
+      setupSelectMock([mockKeywords, [], []]);
 
       vi.mocked(fetchLiveSerpItemsRaw).mockResolvedValue({
         data: [
@@ -172,11 +185,7 @@ describe("ranking-processor", () => {
       });
 
       const insertedValues: unknown[] = [];
-      const mockValues = vi.fn().mockImplementation((values) => {
-        insertedValues.push(values);
-        return Promise.resolve([{}]);
-      });
-      vi.mocked(db.insert).mockReturnValue({ values: mockValues } as never);
+      setupInsertMock(insertedValues);
 
       const job = {
         id: "job-1",
@@ -192,10 +201,6 @@ describe("ranking-processor", () => {
     });
 
     it("should extract SERP features from result types", async () => {
-      const { db } = await import("@/db");
-      const { fetchLiveSerpItemsRaw } = await import("@/server/lib/dataforseo");
-      const processRankingJob = (await import("./ranking-processor")).default;
-
       const mockKeywords = [
         {
           id: "kw-1",
@@ -203,19 +208,13 @@ describe("ranking-processor", () => {
           locationCode: 2840,
           languageCode: "en",
           projectDomain: "example.com",
+          projectId: "proj-1",
+          clientId: "client-1",
+          dropAlertThreshold: 5,
         },
       ];
 
-      let callCount = 0;
-      const mockOffset = vi.fn().mockImplementation(() => {
-        callCount++;
-        return Promise.resolve(callCount === 1 ? mockKeywords : []);
-      });
-      const mockLimit = vi.fn().mockReturnValue({ offset: mockOffset });
-      const mockWhere = vi.fn().mockReturnValue({ limit: mockLimit });
-      const mockInnerJoin = vi.fn().mockReturnValue({ where: mockWhere });
-      const mockFrom = vi.fn().mockReturnValue({ innerJoin: mockInnerJoin });
-      vi.mocked(db.select).mockReturnValue({ from: mockFrom } as never);
+      setupSelectMock([mockKeywords, [], []]);
 
       vi.mocked(fetchLiveSerpItemsRaw).mockResolvedValue({
         data: [
@@ -227,11 +226,7 @@ describe("ranking-processor", () => {
       });
 
       const insertedValues: unknown[] = [];
-      const mockValues = vi.fn().mockImplementation((values) => {
-        insertedValues.push(values);
-        return Promise.resolve([{}]);
-      });
-      vi.mocked(db.insert).mockReturnValue({ values: mockValues } as never);
+      setupInsertMock(insertedValues);
 
       const job = {
         id: "job-1",
@@ -246,25 +241,14 @@ describe("ranking-processor", () => {
     });
 
     it("should handle API errors gracefully and continue to next keyword", async () => {
-      const { db } = await import("@/db");
-      const { fetchLiveSerpItemsRaw } = await import("@/server/lib/dataforseo");
-      const processRankingJob = (await import("./ranking-processor")).default;
-
       const mockKeywords = [
-        { id: "kw-1", keyword: "fail keyword", locationCode: 2840, languageCode: "en", projectDomain: "example.com" },
-        { id: "kw-2", keyword: "success keyword", locationCode: 2840, languageCode: "en", projectDomain: "example.com" },
+        { id: "kw-1", keyword: "fail keyword", locationCode: 2840, languageCode: "en", projectDomain: "example.com", projectId: "proj-1", clientId: "client-1", dropAlertThreshold: 5 },
+        { id: "kw-2", keyword: "success keyword", locationCode: 2840, languageCode: "en", projectDomain: "example.com", projectId: "proj-1", clientId: "client-1", dropAlertThreshold: 5 },
       ];
 
-      let callCount = 0;
-      const mockOffset = vi.fn().mockImplementation(() => {
-        callCount++;
-        return Promise.resolve(callCount === 1 ? mockKeywords : []);
-      });
-      const mockLimit = vi.fn().mockReturnValue({ offset: mockOffset });
-      const mockWhere = vi.fn().mockReturnValue({ limit: mockLimit });
-      const mockInnerJoin = vi.fn().mockReturnValue({ where: mockWhere });
-      const mockFrom = vi.fn().mockReturnValue({ innerJoin: mockInnerJoin });
-      vi.mocked(db.select).mockReturnValue({ from: mockFrom } as never);
+      // Keywords batch, then empty (end loop), then getPreviousPosition for kw-2
+      setupSelectMock([mockKeywords, [], []]);
+      setupInsertMock();
 
       // First call fails, second succeeds
       vi.mocked(fetchLiveSerpItemsRaw)
@@ -273,9 +257,6 @@ describe("ranking-processor", () => {
           data: [{ type: "organic", rank_absolute: 3, url: "https://example.com", domain: "example.com" }],
           billing: { path: ["serp"], costUsd: 0.01, resultCount: 1 },
         });
-
-      const mockValues = vi.fn().mockResolvedValue([{}]);
-      vi.mocked(db.insert).mockReturnValue({ values: mockValues } as never);
 
       const job = {
         id: "job-1",

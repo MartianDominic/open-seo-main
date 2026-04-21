@@ -143,7 +143,7 @@ export function ProposalPageView({
     <div className="min-h-screen bg-background">
       {/* Progress indicator */}
       <ProgressIndicator
-        sections={[...SECTIONS]}
+        sections={SECTIONS}
         activeSection={activeSection}
         onSectionClick={(id) => scrollToSection(id as SectionId)}
       />

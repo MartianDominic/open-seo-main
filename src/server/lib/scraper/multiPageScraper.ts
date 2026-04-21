@@ -10,6 +10,12 @@ import { detectBusinessLinks } from "./linkDetector";
 import type { MultiPageScrapeResult } from "./types";
 import { AppError } from "@/server/lib/errors";
 
+/** Delay between scrape requests in milliseconds */
+const SCRAPE_DELAY_MS = 1000;
+
+/** Maximum number of additional pages to scrape beyond homepage */
+const MAX_ADDITIONAL_PAGES = 3;
+
 /**
  * Sleep for specified milliseconds.
  */
@@ -75,19 +81,19 @@ export async function scrapeProspectSite(
 
   // Add category pages (up to 3 total categories already detected)
   for (const category of businessLinks.categories) {
-    if (urlsToScrape.length >= 3) break;
+    if (urlsToScrape.length >= MAX_ADDITIONAL_PAGES) break;
     urlsToScrape.push(category);
   }
 
-  // Trim to max 3
-  const pagesToScrape = urlsToScrape.slice(0, 3);
+  // Trim to max additional pages
+  const pagesToScrape = urlsToScrape.slice(0, MAX_ADDITIONAL_PAGES);
 
   // Step 4: Scrape additional pages
   const additionalPages = [];
 
   for (const url of pagesToScrape) {
     // Add delay between requests
-    await sleep(1000);
+    await sleep(SCRAPE_DELAY_MS);
 
     const result = await scrapeProspectPage(url);
 

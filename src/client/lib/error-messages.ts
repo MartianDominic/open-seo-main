@@ -8,6 +8,7 @@ const STANDARD_MESSAGES: Record<ErrorCode, string> = {
     "An active hosted subscription is required before you can use OpenSEO.",
   FORBIDDEN: "You do not have access to this resource.",
   NOT_FOUND: "The requested resource was not found.",
+  GONE: "This resource is no longer available.",
   AUDIT_CAPACITY_REACHED:
     "You've reached audit capacity for your account. Delete old audits from your projects to start a new one.",
   VALIDATION_ERROR: "Please check your input and try again.",
@@ -18,6 +19,8 @@ const STANDARD_MESSAGES: Record<ErrorCode, string> = {
     "The connected DataForSEO account has a billing or balance issue.",
   RATE_LIMITED: "Too many requests. Please wait and try again.",
   CONFLICT: "This request conflicts with existing data.",
+  EXTERNAL_SERVICE_ERROR:
+    "An external service returned an error. Please try again later.",
   INTERNAL_ERROR:
     "An unexpected error occurred. Please check server logs and try again.",
 };

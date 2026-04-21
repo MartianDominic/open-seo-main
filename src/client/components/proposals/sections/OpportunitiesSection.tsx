@@ -5,7 +5,7 @@
  * Displays keyword opportunities with difficulty badges and search volume.
  */
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Search, TrendingUp, ChevronDown, ChevronUp } from "lucide-react";
 import { Button } from "@/client/components/ui/button";
@@ -115,8 +115,14 @@ export function OpportunitiesSection({
     ? opportunities
     : opportunities.slice(0, INITIAL_DISPLAY_COUNT);
 
-  const totalPotential = opportunities.reduce((sum, o) => sum + o.potential, 0);
-  const totalVolume = opportunities.reduce((sum, o) => sum + o.volume, 0);
+  const totalPotential = useMemo(
+    () => opportunities.reduce((sum, o) => sum + o.potential, 0),
+    [opportunities]
+  );
+  const totalVolume = useMemo(
+    () => opportunities.reduce((sum, o) => sum + o.volume, 0),
+    [opportunities]
+  );
 
   return (
     <section

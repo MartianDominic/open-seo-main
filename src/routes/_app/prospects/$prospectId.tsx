@@ -9,16 +9,16 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { Loader2, ArrowLeft, Globe, Building2, Mail, User } from "lucide-react";
 import { getProspect } from "@/serverFunctions/prospects";
+import { Badge } from "@/client/components/ui/badge";
 import { Button } from "@/client/components/ui/button";
 import { Card } from "@/client/components/ui/card";
-import { Badge } from "@/client/components/ui/badge";
 import {
   Tabs,
   TabsList,
   TabsTrigger,
   TabsContent,
 } from "@/client/components/ui/tabs";
-import { KeywordGapsTab } from "@/client/components/prospects/KeywordGapsTab";
+import { KeywordGapsTab, StatusBadge } from "@/client/components/prospects";
 
 export const Route = createFileRoute("/_app/prospects/$prospectId")({
   component: ProspectDetailPage,
@@ -77,7 +77,7 @@ function ProspectDetailPage() {
               <p className="text-muted-foreground mt-1">{prospect.companyName}</p>
             )}
           </div>
-          <StatusBadge status={prospect.status} />
+          <StatusBadge status={prospect.status} className="text-sm" />
         </div>
       </div>
 
@@ -128,15 +128,7 @@ function ProspectDetailPage() {
         </TabsContent>
 
         <TabsContent value="keyword-gaps" className="mt-6">
-          <KeywordGapsTab
-            gaps={keywordGaps}
-            domain={prospect.domain}
-            onAddTarget={(keyword) => {
-              // Placeholder for future target management integration
-              // eslint-disable-next-line no-console
-              console.log("Add to targets:", keyword);
-            }}
-          />
+          <KeywordGapsTab gaps={keywordGaps} domain={prospect.domain} />
         </TabsContent>
 
         <TabsContent value="competitors" className="mt-6">
@@ -147,21 +139,6 @@ function ProspectDetailPage() {
   );
 }
 
-function StatusBadge({ status }: { status: string }) {
-  const variants: Record<string, "default" | "secondary" | "destructive" | "outline"> = {
-    new: "secondary",
-    analyzing: "outline",
-    analyzed: "default",
-    converted: "default",
-    archived: "secondary",
-  };
-
-  return (
-    <Badge variant={variants[status] ?? "secondary"} className="text-sm">
-      {status.charAt(0).toUpperCase() + status.slice(1)}
-    </Badge>
-  );
-}
 
 interface OverviewTabProps {
   prospect: {

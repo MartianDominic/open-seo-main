@@ -4,7 +4,7 @@
  *
  * Create/edit proposal for a prospect with live preview.
  */
-import { useState, useMemo } from "react";
+import { useState, useEffect } from "react";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Loader2, ArrowLeft, Save, Send, Eye, Settings } from "lucide-react";
@@ -56,7 +56,7 @@ function ProposalBuilderPage() {
   const [showPreview, setShowPreview] = useState(false);
 
   // Generate default content when prospect loads
-  useMemo(() => {
+  useEffect(() => {
     if (prospect && !content) {
       const defaultContent = generateDefaultContent(prospect as Parameters<typeof generateDefaultContent>[0]);
       setContent(defaultContent);

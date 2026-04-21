@@ -17,7 +17,7 @@ import {
   TableHead,
   TableCell,
 } from "@/client/components/ui/table";
-import { Badge } from "@/client/components/ui/badge";
+import { StatusBadge } from "@/client/components/prospects";
 
 export const Route = createFileRoute("/_app/prospects/")({
   component: ProspectsListPage,
@@ -113,18 +113,3 @@ function ProspectsListPage() {
   );
 }
 
-function StatusBadge({ status }: { status: string }) {
-  const variants: Record<string, "default" | "secondary" | "destructive" | "outline"> = {
-    new: "secondary",
-    analyzing: "outline",
-    analyzed: "default",
-    converted: "default",
-    archived: "secondary",
-  };
-
-  return (
-    <Badge variant={variants[status] ?? "secondary"}>
-      {status.charAt(0).toUpperCase() + status.slice(1)}
-    </Badge>
-  );
-}

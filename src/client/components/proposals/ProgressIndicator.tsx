@@ -16,7 +16,7 @@ interface Section {
 
 interface ProgressIndicatorProps {
   /** List of sections to display */
-  sections: Section[];
+  sections: readonly Section[];
   /** Currently active section ID */
   activeSection: string;
   /** Callback when a section dot is clicked */

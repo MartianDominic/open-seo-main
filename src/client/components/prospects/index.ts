@@ -30,3 +30,5 @@ export type {
 
 export { OpportunitySummaryCard } from "./OpportunitySummaryCard";
 export { OpportunityKeywordsTab } from "./OpportunityKeywordsTab";
+
+export { StatusBadge } from "./StatusBadge";

@@ -29,6 +29,46 @@ import { DifficultyBadge } from "./DifficultyBadge";
 import { ChevronUp, ChevronDown, Plus } from "lucide-react";
 import type { KeywordGap } from "@/db/prospect-schema";
 
+/**
+ * Props for SortableHeader component
+ */
+interface SortableHeaderProps {
+  column: SortColumn;
+  sortColumn: SortColumn;
+  sortDirection: SortDirection;
+  onSort: (column: SortColumn) => void;
+  children: React.ReactNode;
+}
+
+/**
+ * Sortable table header cell component.
+ * Extracted to module level to avoid recreation on every render.
+ */
+function SortableHeader({
+  column,
+  sortColumn,
+  sortDirection,
+  onSort,
+  children,
+}: SortableHeaderProps) {
+  return (
+    <TableHead
+      className="cursor-pointer select-none hover:bg-muted/50"
+      onClick={() => onSort(column)}
+    >
+      <div className="flex items-center gap-1">
+        {children}
+        {sortColumn === column &&
+          (sortDirection === "asc" ? (
+            <ChevronUp className="h-4 w-4" />
+          ) : (
+            <ChevronDown className="h-4 w-4" />
+          ))}
+      </div>
+    </TableHead>
+  );
+}
+
 // Row height for virtualization (in pixels)
 const ROW_HEIGHT = 52;
 // Number of rows to render outside the visible area
@@ -147,29 +187,6 @@ export function KeywordGapTable({ gaps, onAddTarget }: KeywordGapTableProps) {
     }
   };
 
-  const SortableHeader = ({
-    column,
-    children,
-  }: {
-    column: SortColumn;
-    children: React.ReactNode;
-  }) => (
-    <TableHead
-      className="cursor-pointer select-none hover:bg-muted/50"
-      onClick={() => handleSort(column)}
-    >
-      <div className="flex items-center gap-1">
-        {children}
-        {sortColumn === column &&
-          (sortDirection === "asc" ? (
-            <ChevronUp className="h-4 w-4" />
-          ) : (
-            <ChevronDown className="h-4 w-4" />
-          ))}
-      </div>
-    </TableHead>
-  );
-
   if (gaps.length === 0) {
     return (
       <div className="text-center py-8 text-muted-foreground">
@@ -193,17 +210,18 @@ export function KeywordGapTable({ gaps, onAddTarget }: KeywordGapTableProps) {
   const totalSize = rowVirtualizer.getTotalSize();
 
   return (
-    <div className="rounded-md border">
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <SortableHeader column="keyword">Keyword</SortableHeader>
-            <SortableHeader column="competitorDomain">Competitor</SortableHeader>
-            <SortableHeader column="competitorPosition">Position</SortableHeader>
-            <SortableHeader column="searchVolume">Volume</SortableHeader>
-            <SortableHeader column="cpc">CPC</SortableHeader>
-            <SortableHeader column="difficulty">Difficulty</SortableHeader>
-            <SortableHeader column="trafficPotential">
+    <TooltipProvider>
+      <div className="rounded-md border">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <SortableHeader column="keyword" sortColumn={sortColumn} sortDirection={sortDirection} onSort={handleSort}>Keyword</SortableHeader>
+            <SortableHeader column="competitorDomain" sortColumn={sortColumn} sortDirection={sortDirection} onSort={handleSort}>Competitor</SortableHeader>
+            <SortableHeader column="competitorPosition" sortColumn={sortColumn} sortDirection={sortDirection} onSort={handleSort}>Position</SortableHeader>
+            <SortableHeader column="searchVolume" sortColumn={sortColumn} sortDirection={sortDirection} onSort={handleSort}>Volume</SortableHeader>
+            <SortableHeader column="cpc" sortColumn={sortColumn} sortDirection={sortDirection} onSort={handleSort}>CPC</SortableHeader>
+            <SortableHeader column="difficulty" sortColumn={sortColumn} sortDirection={sortDirection} onSort={handleSort}>Difficulty</SortableHeader>
+            <SortableHeader column="trafficPotential" sortColumn={sortColumn} sortDirection={sortDirection} onSort={handleSort}>
               Opportunity
             </SortableHeader>
             <TableHead className="w-[60px]">Action</TableHead>
@@ -259,24 +277,22 @@ export function KeywordGapTable({ gaps, onAddTarget }: KeywordGapTableProps) {
                       {gap.trafficPotential.toLocaleString()}
                     </TableCell>
                     <TableCell>
-                      <TooltipProvider>
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              disabled
-                              onClick={() => onAddTarget?.(gap.keyword)}
-                              aria-label="Add to targets"
-                            >
-                              <Plus className="h-4 w-4" />
-                            </Button>
-                          </TooltipTrigger>
-                          <TooltipContent>
-                            <p>Coming soon</p>
-                          </TooltipContent>
-                        </Tooltip>
-                      </TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            disabled
+                            onClick={() => onAddTarget?.(gap.keyword)}
+                            aria-label="Add to targets"
+                          >
+                            <Plus className="h-4 w-4" />
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <p>Coming soon</p>
+                        </TooltipContent>
+                      </Tooltip>
                     </TableCell>
                   </TableRow>
                 );
@@ -285,6 +301,7 @@ export function KeywordGapTable({ gaps, onAddTarget }: KeywordGapTableProps) {
           </Table>
         </div>
       </div>
-    </div>
+      </div>
+    </TooltipProvider>
   );
 }
