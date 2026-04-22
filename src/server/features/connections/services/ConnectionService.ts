@@ -22,6 +22,9 @@ import type { PlatformType, ConnectionStatus } from "../types";
 import type { PlatformAdapter, CapabilityResult } from "../adapters/BaseAdapter";
 import { WordPressAdapter } from "../adapters/WordPressAdapter";
 import { ShopifyAdapter } from "../adapters/ShopifyAdapter";
+import { WixAdapter } from "../adapters/WixAdapter";
+import { SquarespaceAdapter } from "../adapters/SquarespaceAdapter";
+import { WebflowAdapter } from "../adapters/WebflowAdapter";
 import { encryptCredential, decryptCredential } from "./CredentialEncryption";
 
 // ============================================================================
@@ -292,6 +295,22 @@ export class ConnectionService {
       case "shopify":
         return new ShopifyAdapter({
           shopDomain: new URL(siteUrl).hostname,
+          accessToken: credentials.accessToken as string,
+        });
+      case "wix":
+        return new WixAdapter({
+          siteId: credentials.siteId as string,
+          accessToken: credentials.accessToken as string,
+          accountId: credentials.accountId as string | undefined,
+        });
+      case "squarespace":
+        return new SquarespaceAdapter({
+          siteId: credentials.siteId as string,
+          apiKey: credentials.apiKey as string,
+        });
+      case "webflow":
+        return new WebflowAdapter({
+          siteId: credentials.siteId as string,
           accessToken: credentials.accessToken as string,
         });
       default:
