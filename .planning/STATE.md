@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: verifying
-stopped_at: Completed 30.5-01 CSV Import
-last_updated: "2026-04-22T13:21:40.301Z"
+stopped_at: Completed 30.5-05 Bulk Actions UI
+last_updated: "2026-04-22T13:37:14.696Z"
 last_activity: 2026-04-22
 progress:
   total_phases: 9
-  completed_phases: 1
+  completed_phases: 2
   total_plans: 16
-  completed_plans: 8
-  percent: 50
+  completed_plans: 9
+  percent: 56
 ---
 
 # Project State
@@ -31,7 +31,7 @@ Plan: 8 of 8 in current phase (30-08 complete)
 Status: Phase complete — ready for verification
 Last activity: 2026-04-22
 
-Progress: [██████████] 100%
+Progress: [██████░░░░] 56%
 
 ## Phase 30 Summary
 
@@ -69,6 +69,7 @@ Tests: 170 passing (10 test files)
 
 *Updated after each plan completion*
 | Phase 30.5 P01 | 8 | 3 tasks | 7 files |
+| Phase 30.5 P05 | 8 | 5 tasks | 9 files |
 
 ## Accumulated Context
 
@@ -82,6 +83,7 @@ Recent decisions affecting current work:
 - Pre-init: Redis eviction policy `noeviction` (BullMQ requirement overrides volatile-lru)
 - Pre-init: Worker runs as a separate Docker service (Lighthouse is CPU-heavy; sandboxed processor prevents event-loop blocking)
 - Pre-init: Delete and regenerate drizzle/ migrations (do not migrate SQLite journal to PG)
+- TanStack Table v8 row selection pattern with IndeterminateCheckbox for header
 
 ### Pending Todos
 
@@ -95,6 +97,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-04-22T13:21:40.297Z
-Stopped at: Completed 30.5-01 CSV Import
+Last session: 2026-04-22T13:37:14.692Z
+Stopped at: Completed 30.5-05 Bulk Actions UI
 Resume file: None
