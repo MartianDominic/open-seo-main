@@ -10,6 +10,7 @@ import { z } from "zod";
 import { ProspectService } from "@/server/features/prospects/services/ProspectService";
 import { requireAuthenticatedContext } from "@/serverFunctions/middleware";
 import { PROSPECT_STATUS } from "@/db/prospect-schema";
+import { AppError } from "@/server/lib/errors";
 
 /**
  * Schema for creating a prospect.
@@ -153,4 +154,70 @@ export const deleteProspect = createServerFn({ method: "POST" })
 
     await ProspectService.delete(data.id);
     return { success: true };
+  });
+
+/**
+ * Schema for importing prospects from CSV.
+ * Limit to 10,000 rows per import to prevent DoS (T-30.5-03).
+ */
+const importCsvSchema = z.object({
+  rows: z
+    .array(
+      z.object({
+        domain: z.string().min(1),
+        companyName: z.string().optional(),
+        contactEmail: z.string().email().optional().or(z.literal("")),
+        contactName: z.string().optional(),
+        industry: z.string().optional(),
+        notes: z.string().optional(),
+        source: z.string().optional(),
+      })
+    )
+    .min(1)
+    .max(10000),
+});
+
+/**
+ * Import prospects from parsed CSV data.
+ * Creates prospects in batch, skipping duplicates.
+ *
+ * T-30.5-01: Validates all rows with zod before insert.
+ * T-30.5-02: Handles duplicate domain conflicts gracefully.
+ */
+export const importProspectsFromCsv = createServerFn({ method: "POST" })
+  .middleware(requireAuthenticatedContext)
+  .inputValidator((data: unknown) => importCsvSchema.parse(data))
+  .handler(async ({ data, context }) => {
+    const results = {
+      created: 0,
+      skipped: 0,
+      errors: [] as Array<{ domain: string; error: string }>,
+    };
+
+    for (const row of data.rows) {
+      try {
+        await ProspectService.create({
+          workspaceId: context.organizationId,
+          domain: row.domain,
+          companyName: row.companyName,
+          contactEmail: row.contactEmail || undefined,
+          contactName: row.contactName,
+          industry: row.industry,
+          notes: row.notes,
+          source: row.source || "csv_import",
+        });
+        results.created++;
+      } catch (error) {
+        if (error instanceof AppError && error.code === "CONFLICT") {
+          results.skipped++;
+        } else {
+          results.errors.push({
+            domain: row.domain,
+            error: error instanceof Error ? error.message : "Unknown error",
+          });
+        }
+      }
+    }
+
+    return results;
   });
