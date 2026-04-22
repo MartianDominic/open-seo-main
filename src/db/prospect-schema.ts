@@ -80,6 +80,7 @@ export interface KeywordGap {
   cpc: number;
   difficulty: number;
   trafficPotential: number;
+  achievability?: number; // 0-100, higher = more achievable based on DA (Phase 28-02)
 }
 
 // Scraped content type (from businessExtractor)

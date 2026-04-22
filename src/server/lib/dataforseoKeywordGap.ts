@@ -252,5 +252,62 @@ export function calculateOpportunityScore(gap: KeywordGap): number {
   return Math.round(searchVolume * cpc * difficultyFactor);
 }
 
+// ---------------------------------------------------------------------------
+// Achievability scoring (Phase 28-02)
+// ---------------------------------------------------------------------------
+
+/**
+ * Extended KeywordGap type with achievability score.
+ */
+export interface KeywordGapWithAchievability extends KeywordGap {
+  achievability: number;
+}
+
+/**
+ * Calculate achievability score for a keyword based on domain authority.
+ *
+ * Formula: 100 - max(0, difficulty - domainAuthority)
+ *
+ * This measures how realistic it is for a domain to rank for a keyword.
+ * A domain with DA 50 can tackle difficulty 40 keywords easily (score 100),
+ * but a DA 30 domain facing difficulty 60 keywords scores 70.
+ *
+ * Examples:
+ * - DA 50, Difficulty 40 → 100 - max(0, 40-50) = 100 (easy target)
+ * - DA 30, Difficulty 60 → 100 - max(0, 60-30) = 70 (achievable with effort)
+ * - DA 20, Difficulty 80 → 100 - max(0, 80-20) = 40 (challenging)
+ * - DA 10, Difficulty 10 → 100 - max(0, 10-10) = 100 (easy target)
+ *
+ * @param difficulty - Keyword difficulty (0-100)
+ * @param domainAuthority - Domain Authority / Domain Rank (0-100)
+ * @returns Achievability score (0-100, higher = more achievable)
+ */
+export function calculateAchievability(
+  difficulty: number,
+  domainAuthority: number,
+): number {
+  // Higher DA = can tackle harder keywords
+  // DA 50, Difficulty 40 → achievability = 100 - max(0, 40-50) = 100
+  // DA 30, Difficulty 60 → achievability = 100 - max(0, 60-30) = 70
+  return 100 - Math.max(0, difficulty - domainAuthority);
+}
+
+/**
+ * Enrich keyword gaps with achievability scores based on domain authority.
+ *
+ * @param gaps - Array of keyword gaps to enrich
+ * @param domainAuthority - The prospect's Domain Authority / Domain Rank
+ * @returns Keyword gaps with achievability scores added
+ */
+export function enrichGapsWithAchievability(
+  gaps: KeywordGap[],
+  domainAuthority: number,
+): KeywordGapWithAchievability[] {
+  return gaps.map((gap) => ({
+    ...gap,
+    achievability: calculateAchievability(gap.difficulty, domainAuthority),
+  }));
+}
+
 // Re-export types
 export type { DomainIntersectionItem };

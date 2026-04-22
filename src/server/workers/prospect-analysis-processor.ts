@@ -14,6 +14,10 @@ import {
 } from "@/server/lib/dataforseoProspect";
 import { fetchDomainRankOverviewRaw } from "@/server/lib/dataforseo";
 import {
+  fetchDomainIntersectionRaw,
+  enrichGapsWithAchievability,
+} from "@/server/lib/dataforseoKeywordGap";
+import {
   AnalysisService,
   LOCATION_CODES,
 } from "@/server/features/prospects/services/AnalysisService";
@@ -135,7 +139,33 @@ export default async function processProspectAnalysis(
 
     const competitorDomains = competitorsResult.data.map((item) => item.domain);
 
-    // Step 4: Website scraping and business info extraction
+    // Step 4: Fetch keyword gaps from top competitor (if available)
+    let keywordGaps: Awaited<ReturnType<typeof fetchDomainIntersectionRaw>>["data"] = [];
+    if (competitorDomains.length > 0) {
+      log.info("Fetching keyword gaps", { domain, competitor: competitorDomains[0] });
+      await sleep(API_RATE_LIMIT_MS);
+
+      const gapsResult = await fetchDomainIntersectionRaw({
+        target1: competitorDomains[0], // Competitor has keywords
+        target2: domain, // Prospect is missing them
+        locationCode,
+        languageCode,
+        limit: limits.keywords,
+      });
+      totalCostCents += Math.round(gapsResult.billing.costUsd * 100);
+
+      // Get DA from domain metrics and enrich gaps with achievability
+      const domainAuthority = domainMetrics?.domainRank ?? 0;
+      keywordGaps = enrichGapsWithAchievability(gapsResult.data, domainAuthority);
+
+      log.info("Keyword gaps enriched with achievability", {
+        domain,
+        gapCount: keywordGaps.length,
+        domainAuthority,
+      });
+    }
+
+    // Step 5: Website scraping and business info extraction
     let scrapedContent: ScrapedContent | undefined;
     try {
       log.info("Scraping prospect website", { domain });
@@ -179,7 +209,8 @@ export default async function processProspectAnalysis(
       domainMetrics,
       organicKeywords,
       competitorDomains,
-      competitorKeywords: [], // Would need domain intersection API for full gap analysis
+      competitorKeywords: [], // Legacy field, gaps now in keywordGaps
+      keywordGaps, // Enriched with achievability scores
       scrapedContent,
       costCents: totalCostCents,
     });

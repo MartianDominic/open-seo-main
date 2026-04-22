@@ -14,6 +14,7 @@ import {
   type DomainMetrics,
   type OrganicKeywordItem,
   type CompetitorKeywordItem,
+  type KeywordGap,
   type ScrapedContent,
 } from "@/db/prospect-schema";
 import {
@@ -59,6 +60,7 @@ export interface AnalysisResults {
   organicKeywords?: OrganicKeywordItem[];
   competitorDomains?: string[];
   competitorKeywords?: CompetitorKeywordItem[];
+  keywordGaps?: KeywordGap[]; // Enriched with achievability scores (Phase 28-02)
   scrapedContent?: ScrapedContent;
   costCents: number;
 }
@@ -170,6 +172,7 @@ export const AnalysisService = {
         organicKeywords: results.organicKeywords,
         competitorDomains: results.competitorDomains,
         competitorKeywords: results.competitorKeywords,
+        keywordGaps: results.keywordGaps,
         scrapedContent: results.scrapedContent,
         costCents: results.costCents,
         completedAt: now,
