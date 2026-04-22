@@ -12,7 +12,7 @@
  *   SITE_ENCRYPTION_KEY - Base64-encoded 32-byte key
  *   Generate with: node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"
  */
-import crypto from "node:crypto";
+import * as crypto from "node:crypto";
 
 // Algorithm constants
 const ALGORITHM = "aes-256-gcm";
