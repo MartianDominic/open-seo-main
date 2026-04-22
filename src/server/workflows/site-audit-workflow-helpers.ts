@@ -5,10 +5,16 @@ import { createLogger } from "@/server/lib/logger";
 
 const log = createLogger({ module: "site-audit-workflow" });
 
+/** Extended page result that includes raw HTML for Tier 1 checks */
+export interface CrawlPageResultWithHtml {
+  page: StepPageResult;
+  html: string | null;
+}
+
 export async function crawlPage(
   url: string,
   crawlOrigin: string,
-): Promise<StepPageResult | null> {
+): Promise<CrawlPageResultWithHtml | null> {
   const startTime = Date.now();
 
   try {
@@ -30,7 +36,7 @@ export async function crawlPage(
       response.redirected && response.url !== url ? response.url : null;
     const contentType = response.headers.get("content-type") ?? "";
     if (!contentType.includes("text/html")) {
-      return emptyPageResult(finalUrl, statusCode, redirectUrl, responseTimeMs);
+      return { page: emptyPageResult(finalUrl, statusCode, redirectUrl, responseTimeMs), html: null };
     }
 
     const html = await response.text();
@@ -51,41 +57,44 @@ export async function crawlPage(
     const h6Count = analysis.headingOrder.filter((h) => h === 6).length;
 
     return {
-      id: crypto.randomUUID(),
-      url: finalUrl,
-      statusCode,
-      redirectUrl,
-      title: analysis.title,
-      metaDescription: analysis.metaDescription,
-      canonicalUrl: analysis.canonical,
-      robotsMeta: analysis.robotsMeta,
-      ogTitle: analysis.ogTitle,
-      ogDescription: analysis.ogDescription,
-      ogImage: analysis.ogImage,
-      h1Count: analysis.h1s.length,
-      h2Count,
-      h3Count,
-      h4Count,
-      h5Count,
-      h6Count,
-      headingOrder: analysis.headingOrder,
-      wordCount: analysis.wordCount,
-      imagesTotal: analysis.images.length,
-      imagesMissingAlt: analysis.images.filter(
-        (img) => !img.alt || img.alt === "",
-      ).length,
-      images: analysis.images,
-      internalLinks: analysis.internalLinks,
-      externalLinks: analysis.externalLinks,
-      hasStructuredData: analysis.hasStructuredData,
-      hreflangTags: analysis.hreflangTags,
-      isIndexable,
-      responseTimeMs,
+      page: {
+        id: crypto.randomUUID(),
+        url: finalUrl,
+        statusCode,
+        redirectUrl,
+        title: analysis.title,
+        metaDescription: analysis.metaDescription,
+        canonicalUrl: analysis.canonical,
+        robotsMeta: analysis.robotsMeta,
+        ogTitle: analysis.ogTitle,
+        ogDescription: analysis.ogDescription,
+        ogImage: analysis.ogImage,
+        h1Count: analysis.h1s.length,
+        h2Count,
+        h3Count,
+        h4Count,
+        h5Count,
+        h6Count,
+        headingOrder: analysis.headingOrder,
+        wordCount: analysis.wordCount,
+        imagesTotal: analysis.images.length,
+        imagesMissingAlt: analysis.images.filter(
+          (img) => !img.alt || img.alt === "",
+        ).length,
+        images: analysis.images,
+        internalLinks: analysis.internalLinks,
+        externalLinks: analysis.externalLinks,
+        hasStructuredData: analysis.hasStructuredData,
+        hreflangTags: analysis.hreflangTags,
+        isIndexable,
+        responseTimeMs,
+      },
+      html,
     };
   } catch (error) {
     const responseTimeMs = Date.now() - startTime;
     log.warn("Failed to crawl URL", { url, error: error instanceof Error ? error.message : String(error) });
-    return emptyPageResult(url, 0, null, responseTimeMs);
+    return { page: emptyPageResult(url, 0, null, responseTimeMs), html: null };
   }
 }
 
