@@ -170,6 +170,136 @@ describe("Tier 1 Checks", () => {
   });
 });
 
+describe("Performance Benchmarks", () => {
+  it("should run all checks in under 100ms for realistic HTML (~5KB)", async () => {
+    // Generate realistic 5KB HTML page
+    const realisticHtml = generateRealisticHtml(5);
+    const start = performance.now();
+    const results = await runTier1Checks(realisticHtml, "https://example.com/realistic-page", "SEO");
+    const duration = performance.now() - start;
+
+    expect(duration).toBeLessThan(100);
+    expect(results.length).toBe(TIER1_CHECK_COUNT);
+  });
+
+  it("should run all checks in under 100ms for large HTML (~50KB)", async () => {
+    // Generate large 50KB HTML page (worst case realistic scenario)
+    const largeHtml = generateRealisticHtml(50);
+    const start = performance.now();
+    const results = await runTier1Checks(largeHtml, "https://example.com/large-page", "SEO");
+    const duration = performance.now() - start;
+
+    expect(duration).toBeLessThan(100);
+    expect(results.length).toBe(TIER1_CHECK_COUNT);
+  });
+
+  it("should run all checks in under 300ms for very large HTML (~500KB)", async () => {
+    // Generate very large HTML (edge case - complex pages)
+    const veryLargeHtml = generateRealisticHtml(500);
+    const start = performance.now();
+    const results = await runTier1Checks(veryLargeHtml, "https://example.com/very-large-page", "SEO");
+    const duration = performance.now() - start;
+
+    // Allow 300ms for very large pages (edge case, most pages are <50KB)
+    // DoS mitigation threshold is 5MB which would be rejected
+    expect(duration).toBeLessThan(300);
+    expect(results.length).toBe(TIER1_CHECK_COUNT);
+  });
+});
+
+/**
+ * Generate realistic HTML of approximately the given size in KB.
+ * Creates a blog-style page with navigation, article, sidebar, footer.
+ */
+function generateRealisticHtml(sizeKb: number): string {
+  const targetSize = sizeKb * 1024;
+
+  const header = `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Comprehensive guide to SEO optimization strategies for 2026. Learn best practices for improving search rankings and driving organic traffic.">
+  <title>Complete SEO Guide 2026 - Expert Optimization Strategies</title>
+  <link rel="canonical" href="https://example.com/seo-guide">
+  <meta property="og:title" content="SEO Guide 2026">
+  <meta property="og:description" content="Learn SEO best practices">
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "Article",
+    "headline": "Complete SEO Guide 2026",
+    "author": {"@type": "Person", "name": "John Smith"},
+    "datePublished": "2026-04-22"
+  }
+  </script>
+</head>
+<body>
+<header>
+  <nav>
+    <a href="/">Home</a>
+    <a href="/about">About</a>
+    <a href="/services" title="Our SEO services">Services</a>
+    <a href="/contact">Contact</a>
+  </nav>
+</header>
+<main>
+  <article>
+    <h1>Complete SEO Guide for 2026</h1>
+    <p class="byline">By <a href="/author/john-smith" rel="author">John Smith</a> | Updated April 2026</p>
+    <p>SEO optimization is essential for any website looking to improve its search engine rankings.
+    This comprehensive guide covers all aspects of <strong>SEO</strong> including technical optimization,
+    content strategy, and <em>link building</em>.</p>
+`;
+
+  const footer = `
+    </article>
+    <aside>
+      <h3>Related Articles</h3>
+      <ul>
+        <li><a href="/seo-tools">Best SEO Tools</a></li>
+        <li><a href="/keyword-research">Keyword Research Guide</a></li>
+      </ul>
+    </aside>
+  </main>
+  <footer>
+    <p>&copy; 2026 SEO Guide. All rights reserved.</p>
+    <a href="/privacy">Privacy Policy</a>
+    <a href="/terms">Terms of Service</a>
+  </footer>
+  <noscript>SEO optimization content is available without JavaScript.</noscript>
+</body>
+</html>`;
+
+  // Generate content paragraphs to fill the target size
+  const paragraphTemplate = `
+    <h2>SEO Strategy Section</h2>
+    <p>Understanding search engine optimization requires knowledge of both technical and content factors.
+    Google uses hundreds of ranking signals to determine page positions. Key factors include page speed,
+    mobile-friendliness, content quality, and backlink profile. Implementing proper SEO practices can
+    significantly improve organic traffic and visibility in search results.</p>
+    <p>Content optimization involves targeting specific keywords while maintaining natural readability.
+    Use semantic HTML, proper heading hierarchy, and include images with descriptive alt text.
+    Internal linking helps distribute page authority throughout your site structure.</p>
+    <ul>
+      <li>Optimize title tags (50-60 characters)</li>
+      <li>Write compelling meta descriptions (150-160 characters)</li>
+      <li>Use H1 for main heading, H2-H6 for subheadings</li>
+      <li>Include target keywords naturally</li>
+    </ul>
+    <img src="/images/seo-chart-${Math.random().toString(36).substring(7)}.webp" alt="SEO ranking factors chart" width="800" height="600" loading="lazy">
+    <a href="/external-resource" target="_blank" rel="noopener">Learn more about SEO</a>
+`;
+
+  let content = "";
+  while ((header + content + footer).length < targetSize) {
+    content += paragraphTemplate;
+  }
+
+  return header + content + footer;
+}
+
 describe("Individual Check Categories", () => {
   it("should have 5 HTML signal checks (T1-01 to T1-05)", () => {
     const checks = tier1Checks().filter(c => c.category === "html-signals");
