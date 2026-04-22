@@ -17,3 +17,4 @@ export * from "./client-schema";
 export * from "./automation-schema";
 export * from "./pipeline-rules-schema";
 export * from "./connection-schema";
+export * from "./change-schema";
