@@ -6,17 +6,17 @@
  * automatically reverts changes when conditions are met.
  */
 import { Worker, Queue, type Job } from 'bullmq';
-import { redisConnection } from '~/server/redis';
+import { getSharedBullMQConnection } from '@/server/lib/redis';
 import {
   evaluateTrigger,
   getEnabledTriggers,
   updateTriggerTimestamps,
-} from '~/server/features/changes/services/TriggerService';
-import { revertByScope } from '~/server/features/changes/services/RevertService';
-import { getAdapterForConnection } from '~/server/features/connections/services/ConnectionService';
-import { isWriteAdapter } from '~/server/features/connections/adapters/BaseAdapter';
-import { db } from '~/db';
-import { siteConnections } from '~/db/connection-schema';
+} from '@/server/features/changes/services/TriggerService';
+import { revertByScope } from '@/server/features/changes/services/RevertService';
+import { connectionService } from '@/server/features/connections/services/ConnectionService';
+import { isWriteAdapter } from '@/server/features/connections/adapters/BaseAdapter';
+import { db } from '@/db';
+import { siteConnections } from '@/db/connection-schema';
 import { eq, and } from 'drizzle-orm';
 
 const QUEUE_NAME = 'auto-revert';
@@ -25,7 +25,7 @@ const QUEUE_NAME = 'auto-revert';
  * Queue for auto-revert jobs.
  */
 export const autoRevertQueue = new Queue(QUEUE_NAME, {
-  connection: redisConnection,
+  connection: getSharedBullMQConnection('queue:auto-revert'),
   defaultJobOptions: {
     attempts: 3,
     backoff: {
@@ -111,7 +111,7 @@ async function processAutoRevertJob(job: Job<AutoRevertJobData>): Promise<AutoRe
       }
 
       // Get adapter
-      const adapter = await getAdapterForConnection(connection.id);
+      const adapter = await connectionService.getConnectionWithAdapter(connection.id);
       if (!adapter || !isWriteAdapter(adapter)) {
         result.errors.push(`No write adapter for connection ${connection.id}`);
         await job.log(`No write adapter for connection ${connection.id}`);
@@ -155,7 +155,7 @@ export const autoRevertWorker = new Worker<AutoRevertJobData, AutoRevertJobResul
   QUEUE_NAME,
   processAutoRevertJob,
   {
-    connection: redisConnection,
+    connection: getSharedBullMQConnection('queue:auto-revert'),
     concurrency: 1, // Only one auto-revert check at a time
     lockDuration: 5 * 60 * 1000, // 5 minutes
     stalledInterval: 60 * 1000, // Check for stalled jobs every minute

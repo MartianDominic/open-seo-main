@@ -6,18 +6,18 @@
  * Uses edit recipes to execute changes via platform adapters.
  */
 import { nanoid } from 'nanoid';
-import { db } from '~/db';
-import { siteChanges } from '~/db/change-schema';
+import { db } from '@/db';
+import { siteChanges } from '@/db/change-schema';
 import { eq } from 'drizzle-orm';
-import type { SiteChangeInsert, SiteChangeSelect } from '~/db/change-schema';
-import type { PlatformWriteAdapter } from '~/server/features/connections/adapters/BaseAdapter';
+import type { SiteChangeInsert, SiteChangeSelect } from '@/db/change-schema';
+import type { PlatformWriteAdapter } from '@/server/features/connections/adapters/BaseAdapter';
 import {
   resolveRecipe,
   isRecipeSafe,
   getRecipeInfo,
   type RecipeContext,
   type RecipeResult
-} from '~/lib/edit-recipes';
+} from '@/lib/edit-recipes';
 import {
   ChangeRepository,
   insertChange,

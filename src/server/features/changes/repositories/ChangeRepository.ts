@@ -5,8 +5,8 @@
  * CRUD operations for site_changes table.
  */
 import { eq, and, inArray, desc } from 'drizzle-orm';
-import { db } from '~/db';
-import { siteChanges, type SiteChangeInsert, type SiteChangeSelect } from '~/db/change-schema';
+import { db } from '@/db';
+import { siteChanges, type SiteChangeInsert, type SiteChangeSelect } from '@/db/change-schema';
 
 /**
  * Insert a new change record.
@@ -48,28 +48,23 @@ export async function getChangesByClient(
     offset?: number;
   }
 ): Promise<SiteChangeSelect[]> {
-  let query = db
-    .select()
-    .from(siteChanges)
-    .where(eq(siteChanges.clientId, clientId))
-    .orderBy(desc(siteChanges.createdAt));
+  const conditions = [eq(siteChanges.clientId, clientId)];
 
   if (options?.status) {
-    query = query.where(and(
-      eq(siteChanges.clientId, clientId),
-      eq(siteChanges.status, options.status)
-    )) as typeof query;
+    conditions.push(eq(siteChanges.status, options.status));
   }
 
-  if (options?.limit) {
-    query = query.limit(options.limit);
+  if (options?.category) {
+    conditions.push(eq(siteChanges.category, options.category));
   }
 
-  if (options?.offset) {
-    query = query.offset(options.offset);
-  }
-
-  return await query;
+  return await db
+    .select()
+    .from(siteChanges)
+    .where(and(...conditions))
+    .orderBy(desc(siteChanges.createdAt))
+    .limit(options?.limit ?? 100)
+    .offset(options?.offset ?? 0);
 }
 
 /**

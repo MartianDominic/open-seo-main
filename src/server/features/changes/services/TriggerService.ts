@@ -5,11 +5,12 @@
  * Evaluates rollback triggers by checking traffic and ranking metrics.
  * Returns whether a trigger should fire and what scope to revert.
  */
-import { db } from '~/db';
-import { rollbackTriggers, type RollbackTriggerSelect } from '~/db/change-schema';
-import { gscSnapshots } from '~/db/analytics-schema';
-import { keywordRankings } from '~/db/ranking-schema';
-import { savedKeywords } from '~/db/app.schema';
+import { db } from '@/db';
+import { rollbackTriggers, type RollbackTriggerSelect } from '@/db/change-schema';
+import { gscSnapshots } from '@/db/analytics-schema';
+import { keywordRankings } from '@/db/ranking-schema';
+import { savedKeywords, projects } from '@/db/app.schema';
+import { clients } from '@/db/client-schema';
 import { eq, and, gte, lte, desc, sql } from 'drizzle-orm';
 import type { RevertScope } from './RevertService';
 
@@ -131,7 +132,22 @@ export async function checkRankingDrop(
   const now = new Date();
   const comparisonDate = new Date(now.getTime() - periodDays * 24 * 60 * 60 * 1000);
 
-  // Get latest rankings with client filtering via savedKeywords join
+  // Get client's workspace to find their projects
+  const [client] = await db
+    .select({ workspaceId: clients.workspaceId })
+    .from(clients)
+    .where(eq(clients.id, clientId))
+    .limit(1);
+
+  if (!client) {
+    return {
+      shouldFire: false,
+      reason: `Client ${clientId} not found`,
+      affectedKeywords: [],
+    };
+  }
+
+  // Get latest rankings via client -> projects -> savedKeywords path
   const latestRankings = await db
     .select({
       keyword: savedKeywords.keyword,
@@ -140,12 +156,13 @@ export async function checkRankingDrop(
     })
     .from(keywordRankings)
     .innerJoin(savedKeywords, eq(keywordRankings.keywordId, savedKeywords.id))
+    .innerJoin(projects, eq(savedKeywords.projectId, projects.id))
     .where(
       and(
-        eq(savedKeywords.clientId, clientId),
+        eq(projects.organizationId, client.workspaceId),
         eq(
           keywordRankings.date,
-          sql`(SELECT MAX(date) FROM ${keywordRankings} kr2 WHERE kr2.keyword_id = ${keywordRankings.keywordId})`
+          sql`(SELECT MAX(date) FROM keyword_rankings kr2 WHERE kr2.keyword_id = ${keywordRankings.keywordId})`
         )
       )
     );
@@ -159,9 +176,10 @@ export async function checkRankingDrop(
     })
     .from(keywordRankings)
     .innerJoin(savedKeywords, eq(keywordRankings.keywordId, savedKeywords.id))
+    .innerJoin(projects, eq(savedKeywords.projectId, projects.id))
     .where(
       and(
-        eq(savedKeywords.clientId, clientId),
+        eq(projects.organizationId, client.workspaceId),
         lte(keywordRankings.date, comparisonDate)
       )
     )

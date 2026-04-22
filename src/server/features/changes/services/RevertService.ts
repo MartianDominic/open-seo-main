@@ -6,10 +6,10 @@
  * Handles dependency detection, preview mode, and actual revert execution.
  */
 import { nanoid } from 'nanoid';
-import { db } from '~/db';
-import { siteChanges, type SiteChangeSelect, type SiteChangeInsert } from '~/db/change-schema';
+import { db } from '@/db';
+import { siteChanges, type SiteChangeSelect, type SiteChangeInsert } from '@/db/change-schema';
 import { and, eq, gte, lte, desc, inArray } from 'drizzle-orm';
-import type { PlatformWriteAdapter, WriteResult } from '~/server/features/connections/adapters/BaseAdapter';
+import type { PlatformWriteAdapter, WriteResult } from '@/server/features/connections/adapters/BaseAdapter';
 import {
   ChangeRepository,
   insertChange,

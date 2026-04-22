@@ -5,8 +5,8 @@
  * Detects dependencies between changes to prevent cascading issues on revert.
  * A change B depends on change A if B's beforeValue equals A's afterValue.
  */
-import { db } from '~/db';
-import { siteChanges, type SiteChangeSelect } from '~/db/change-schema';
+import { db } from '@/db';
+import { siteChanges, type SiteChangeSelect } from '@/db/change-schema';
 import { and, eq, gt, desc, inArray } from 'drizzle-orm';
 
 /**

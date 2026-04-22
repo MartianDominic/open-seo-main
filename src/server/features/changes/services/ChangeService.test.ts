@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { applyChange, applyBatchChanges, previewChange, type ApplyChangeInput } from './ChangeService';
-import type { PlatformWriteAdapter } from '~/server/features/connections/adapters/BaseAdapter';
-import type { RecipeContext } from '~/lib/edit-recipes';
+import type { PlatformWriteAdapter } from '@/server/features/connections/adapters/BaseAdapter';
+import type { RecipeContext } from '@/lib/edit-recipes';
 
 // Mock dependencies
 vi.mock('../repositories/ChangeRepository', () => ({
