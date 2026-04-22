@@ -143,6 +143,36 @@ Conventions not yet established. Will populate as patterns emerge during develop
 Architecture not yet mapped. Follow existing patterns found in the codebase.
 <!-- GSD:architecture-end -->
 
+## Autonomous SEO Platform
+
+Zero-human-oversight SEO platform: content generation, technical SEO fixes, on-page optimization, and client site management on auto-pilot.
+
+**Generation Model:** Gemini 3.1 Pro (2026)
+
+**Documentation:** [docs/rnd/AUTONOMOUS-SEO-PLATFORM.md](docs/rnd/AUTONOMOUS-SEO-PLATFORM.md)
+
+**Core Capabilities:**
+- **Content Generation** — Gemini 3.1 Pro + RAG from client knowledge base
+- **Technical SEO** — Auto-detect and fix via pixel/edge worker
+- **On-Page SEO** — Auto-optimize titles, meta, headings, images, links
+- **Content Refresh** — Monitor decay, auto-update existing content
+- **Client Knowledge** — Case studies, stats, testimonials, brand voice
+
+**Architecture:**
+- Vector DB: pgvector (PostgreSQL)
+- Embeddings: Gemini `text-embedding-004`
+- Generation: Gemini 3.1 Pro only
+- Data Input: Dashboard, API, file upload, CMS sync
+- Data Matching: Fingerprinting + fuzzy matching + merge strategies
+
+**Quality Gate:** All 5 dimensions must score 75+ before content publishes.
+
+**Related Research:**
+- [Auto-Pilot Ranking System](.planning/research/AUTO-PILOT-RANKING-SYSTEM.md)
+- [Pixel Optimization System](.planning/research/PIXEL-OPTIMIZATION-SYSTEM.md)
+- [Technical SEO Automation](.planning/research/TECHNICAL-SEO-AUTOMATION-STRATEGY.md)
+- [World-Class Platform Strategy](.planning/research/WORLD_CLASS_SEO_PLATFORM_STRATEGY.md)
+
 <!-- GSD:skills-start source:skills/ -->
 ## Project Skills
 
