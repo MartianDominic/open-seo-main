@@ -41,6 +41,17 @@ export interface WPPost {
   meta?: Record<string, unknown>;
 }
 
+/**
+ * Input data for updating a WordPress post.
+ * Uses string values which WordPress API converts internally.
+ */
+export interface WPPostUpdateInput {
+  title?: string;
+  content?: string;
+  excerpt?: string;
+  meta?: Record<string, unknown>;
+}
+
 // ============================================================================
 // WordPress Adapter Implementation
 // ============================================================================
@@ -172,10 +183,7 @@ export class WordPressAdapter implements PlatformAdapter {
    */
   async updatePost(
     postId: number,
-    data: Partial<Pick<WPPost, "title" | "content" | "excerpt" | "meta">> & {
-      title?: string;
-      content?: string;
-    }
+    data: WPPostUpdateInput
   ): Promise<WPPost> {
     return this.request<WPPost>(`/posts/${postId}`, {
       method: "POST",
