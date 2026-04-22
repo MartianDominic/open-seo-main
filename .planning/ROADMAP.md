@@ -21,6 +21,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 29: AI Opportunity Discovery** - Generate keyword opportunities from scraped content for zero-ranking sites
 - [ ] **Phase 30: Interactive Proposals** - Scrollytelling proposals, Lithuanian AI generation, Smart-ID signing, Stripe payments
 - [ ] **Phase 30.5: Prospect Pipeline Automation** - CSV bulk import, pipeline stage tracking, automation rules, bulk actions UI
+- [ ] **Phase 31: Site Connection & Platform Detection** - Unified site connection model with platform auto-detection for WordPress, Shopify, Wix, Squarespace, Webflow, custom sites
 
 ## Phase Details
 
@@ -137,6 +138,25 @@ Plans:
 - [ ] 30.5-05-PLAN.md — Bulk actions UI, pipeline chart (depends on 30.5-04)
 **UI hint**: yes
 
+### Phase 31: Site Connection & Platform Detection
+**Goal**: Unified site connection model with platform auto-detection. Connects to WordPress, Shopify, Wix, Squarespace, Webflow, and custom sites for content management.
+**Depends on**: Phase 30 (client model)
+**Requirements**: CONN-01, CONN-02, CONN-03, CONN-04, CONN-05, CONN-06
+**Success Criteria** (what must be TRUE):
+  1. site_connections table exists with encrypted credentials column (AES-256-GCM)
+  2. Platform detection correctly identifies WordPress, Shopify, Wix, Squarespace, Webflow
+  3. WordPress adapter connects via REST API with App Password auth
+  4. Shopify adapter connects via GraphQL with OAuth token
+  5. Connection wizard auto-detects platform and presents appropriate credential form
+  6. Write permission verified before connection marked active
+**Plans**: 4 plans
+Plans:
+- [ ] 31-01-PLAN.md — site_connections schema + encryption utilities
+- [ ] 31-02-PLAN.md — Platform detection service (multi-probe fingerprinting)
+- [ ] 31-03-PLAN.md — Platform adapters (WordPress REST, Shopify GraphQL)
+- [ ] 31-04-PLAN.md — Connection wizard UI + write verification
+**UI hint**: yes
+
 ## Progress
 
 **Execution Order:**
@@ -153,3 +173,4 @@ Phases execute in numeric order: 1 → 2 → 3 → 4
 | 29. AI Opportunity Discovery | 0/1 | Not started | - |
 | 30. Interactive Proposals | 0/8 | Not started | - |
 | 30.5. Prospect Pipeline Automation | 0/3 | Not started | - |
+| 31. Site Connection & Platform Detection | 0/4 | Not started | - |
