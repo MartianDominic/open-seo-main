@@ -92,3 +92,36 @@ export const REQUIRED_ENV_CORE = [
   "ALWRITY_DATABASE_URL",
   "CLERK_PUBLISHABLE_KEY",
 ] as const;
+
+/**
+ * Validate SITE_ENCRYPTION_KEY format.
+ * Must be a base64-encoded 32-byte key for AES-256.
+ *
+ * Generate with: node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"
+ *
+ * @throws Error if key is present but invalid format
+ */
+export function validateSiteEncryptionKey(): void {
+  const key = readEnv("SITE_ENCRYPTION_KEY");
+  if (!key) {
+    // Key is optional - only validate if present
+    return;
+  }
+
+  const decoded = Buffer.from(key, "base64");
+  if (decoded.length !== 32) {
+    throw new Error(
+      `SITE_ENCRYPTION_KEY must be a base64-encoded 32-byte key. ` +
+        `Got ${decoded.length} bytes after decoding. ` +
+        `Generate with: node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"`
+    );
+  }
+}
+
+/**
+ * Environment variables required for site connections feature.
+ * SITE_ENCRYPTION_KEY is required when storing platform credentials.
+ */
+export const REQUIRED_ENV_CONNECTIONS = [
+  "SITE_ENCRYPTION_KEY",
+] as const;
