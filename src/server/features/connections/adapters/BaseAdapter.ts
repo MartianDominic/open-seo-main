@@ -98,6 +98,45 @@ export interface ShopifyAdapterConfig {
   apiVersion?: string;
 }
 
+/**
+ * Wix adapter configuration.
+ * Uses Wix Headless API with Bearer token authentication.
+ */
+export interface WixAdapterConfig {
+  /** Wix site ID */
+  siteId: string;
+
+  /** Wix API access token (from OAuth or app dashboard) */
+  accessToken: string;
+
+  /** Optional Wix account ID */
+  accountId?: string;
+}
+
+/**
+ * Squarespace adapter configuration.
+ * Uses Squarespace REST API with API key authentication.
+ */
+export interface SquarespaceAdapterConfig {
+  /** Squarespace site ID */
+  siteId: string;
+
+  /** Squarespace API key */
+  apiKey: string;
+}
+
+/**
+ * Webflow adapter configuration.
+ * Uses Webflow CMS API v2 with Bearer token authentication.
+ */
+export interface WebflowAdapterConfig {
+  /** Webflow site ID */
+  siteId: string;
+
+  /** Webflow API access token */
+  accessToken: string;
+}
+
 // ============================================================================
 // Factory Type
 // ============================================================================

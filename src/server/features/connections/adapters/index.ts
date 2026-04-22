@@ -11,9 +11,13 @@ export type {
   CapabilityResult,
   WordPressAdapterConfig,
   ShopifyAdapterConfig,
+  WixAdapterConfig,
+  SquarespaceAdapterConfig,
+  WebflowAdapterConfig,
   AdapterFactory,
 } from "./BaseAdapter";
 
 // Implementations
 export { WordPressAdapter } from "./WordPressAdapter";
 export { ShopifyAdapter } from "./ShopifyAdapter";
+export { WixAdapter } from "./WixAdapter";
