@@ -21,3 +21,5 @@ export type {
 export { WordPressAdapter } from "./WordPressAdapter";
 export { ShopifyAdapter } from "./ShopifyAdapter";
 export { WixAdapter } from "./WixAdapter";
+export { SquarespaceAdapter } from "./SquarespaceAdapter";
+export { WebflowAdapter } from "./WebflowAdapter";
