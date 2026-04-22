@@ -11,7 +11,7 @@ import { ProspectService } from "@/server/features/prospects/services/ProspectSe
 import { AnalysisService } from "@/server/features/prospects/services/AnalysisService";
 import { PipelineService } from "@/server/features/prospects/services/PipelineService";
 import { requireAuthenticatedContext } from "@/serverFunctions/middleware";
-import { PROSPECT_STATUS, PIPELINE_STAGES, type PipelineStage } from "@/db/prospect-schema";
+import { PROSPECT_STATUS } from "@/db/prospect-schema";
 import { AppError } from "@/server/lib/errors";
 
 /**

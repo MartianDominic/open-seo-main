@@ -9,7 +9,7 @@
  * 4. Return ranked, categorized opportunities
  */
 
-import type { OpportunityKeyword, OpportunityKeywordCategory } from "@/db/prospect-schema";
+import type { OpportunityKeyword, OpportunityKeywordCategory, KeywordClass } from "@/db/prospect-schema";
 import type { BusinessInfo } from "@/server/lib/scraper/businessExtractor";
 import { generateKeywordOpportunities } from "./keywordGenerator";
 import { validateKeywordVolumes, enrichKeywordsWithMetrics } from "./volumeValidator";
@@ -105,8 +105,11 @@ export const OpportunityDiscoveryService = {
     // Step 3: Enrich with metrics and calculate scores
     const enrichedKeywords = enrichKeywordsWithMetrics(generatedKeywords, volumeData);
 
-    // Step 4: Calculate summary
-    const summary = this.calculateSummary(enrichedKeywords);
+    // Step 4: Apply classification
+    const classifiedKeywords = classifyKeywords(enrichedKeywords);
+
+    // Step 6: Calculate summary
+    const summary = this.calculateSummary(classifiedKeywords);
 
     log.info("Opportunity discovery complete", {
       keywordsGenerated: generatedKeywords.length,
@@ -116,7 +119,7 @@ export const OpportunityDiscoveryService = {
     });
 
     return {
-      keywords: enrichedKeywords,
+      keywords: classifiedKeywords,
       summary,
       costUsd,
     };
@@ -188,4 +191,40 @@ function getEmptySummary(): OpportunitySummary {
       informational: 0,
     },
   };
+}
+
+/**
+ * Classify a keyword based on difficulty, volume, and achievability.
+ * Phase 29-04: Keyword Classification Algorithm
+ *
+ * Classification rules:
+ * - quick_win: Low difficulty (<30), decent volume (>100), high achievability (>70)
+ * - strategic: Medium difficulty (30-60), high volume (>500)
+ * - long_tail: Everything else (typically low volume, high difficulty, or low achievability)
+ */
+export function classifyOpportunityKeyword(keyword: OpportunityKeyword): KeywordClass {
+  const { searchVolume, difficulty, achievability = 50 } = keyword;
+
+  // Quick wins: easy to rank, reasonable volume, high achievability
+  if (difficulty < 30 && searchVolume > 100 && achievability > 70) {
+    return "quick_win";
+  }
+
+  // Strategic: medium difficulty but high volume worth the effort
+  if (difficulty >= 30 && difficulty <= 60 && searchVolume > 500) {
+    return "strategic";
+  }
+
+  // Long tail: everything else
+  return "long_tail";
+}
+
+/**
+ * Apply classification to all keywords in a list.
+ */
+export function classifyKeywords(keywords: OpportunityKeyword[]): OpportunityKeyword[] {
+  return keywords.map((keyword) => ({
+    ...keyword,
+    classification: classifyOpportunityKeyword(keyword),
+  }));
 }

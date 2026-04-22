@@ -45,7 +45,7 @@ function ProspectsListPage() {
   // Fetch remaining analysis quota
   const { data: quotaData } = useQuery({
     queryKey: ["prospects", "quota"],
-    queryFn: () => getRemainingQuota({ data: {} }),
+    queryFn: () => getRemainingQuota(),
   });
 
   const prospects = data?.data ?? [];
@@ -76,9 +76,9 @@ function ProspectsListPage() {
   // Navigate to prospect detail on row click
   const handleProspectClick = useCallback(
     (prospect: ProspectSelect) => {
-      navigate({ to: "/prospects/$prospectId", params: { prospectId: prospect.id } });
+      window.location.href = `/prospects/${prospect.id}`;
     },
-    [navigate]
+    []
   );
 
   // Handle CSV import completion

@@ -16,7 +16,6 @@ import type {
   KeywordGap,
   OpportunityKeyword,
   OrganicKeywordItem,
-  ScrapedContent,
 } from "@/db/prospect-schema";
 
 /** PDF-safe RGB color palette */
@@ -85,16 +84,6 @@ function formatCurrency(num: number | undefined | null): string {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   }).format(num);
-}
-
-/**
- * Get difficulty badge color based on score.
- */
-function getDifficultyColor(difficulty: number | undefined): string {
-  if (difficulty === undefined) return COLORS.textMuted;
-  if (difficulty <= 30) return COLORS.positive;
-  if (difficulty <= 60) return COLORS.warning;
-  return COLORS.negative;
 }
 
 /**
