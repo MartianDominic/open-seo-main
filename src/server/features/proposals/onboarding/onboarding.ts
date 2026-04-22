@@ -15,9 +15,9 @@ import { eq } from "drizzle-orm";
 import { nanoid } from "nanoid";
 import { db } from "@/db/index";
 import { proposals } from "@/db/proposal-schema";
-import { prospects, type ProspectAnalysisSelect } from "@/db/prospect-schema";
+import { prospects, type ProspectAnalysisSelect, type OpportunityKeyword } from "@/db/prospect-schema";
 import { clients, type ClientSelect } from "@/db/client-schema";
-import { projects } from "@/db/app.schema";
+import { projects, savedKeywords } from "@/db/app.schema";
 import { createLogger } from "@/server/lib/logger";
 import { AppError } from "@/server/lib/errors";
 import {
@@ -300,6 +300,45 @@ export async function createClientFromProposal(
 }
 
 /**
+ * Import opportunity keywords from analysis into saved_keywords table.
+ * Called during onboarding to seed the project with keywords to track.
+ *
+ * @param tx - Transaction context
+ * @param projectId - Project to import keywords into
+ * @param keywords - Opportunity keywords from analysis
+ * @returns Number of keywords imported
+ */
+async function importKeywordsFromAnalysis(
+  tx: TxContext,
+  projectId: string,
+  keywords: OpportunityKeyword[]
+): Promise<number> {
+  if (!keywords || keywords.length === 0) {
+    return 0;
+  }
+
+  const now = new Date();
+  const keywordValues = keywords.map((kw) => ({
+    id: nanoid(),
+    projectId,
+    keyword: kw.keyword,
+    locationCode: 2840, // Default US, can be made configurable
+    languageCode: "en",
+    trackingEnabled: true,
+    dropAlertThreshold: 5, // Default alert threshold
+    createdAt: now,
+  }));
+
+  // Insert keywords, ignoring duplicates (ON CONFLICT DO NOTHING)
+  await tx
+    .insert(savedKeywords)
+    .values(keywordValues)
+    .onConflictDoNothing();
+
+  return keywordValues.length;
+}
+
+/**
  * Create a project for a new client with imported analysis data (transaction-aware version).
  * Internal helper used within transactions.
  */
@@ -327,11 +366,22 @@ async function createProjectFromAnalysisWithTx(
     })
     .returning();
 
+  // Import opportunity keywords from analysis if available
+  let importedKeywordsCount = 0;
+  if (analysis?.opportunityKeywords && analysis.opportunityKeywords.length > 0) {
+    importedKeywordsCount = await importKeywordsFromAnalysis(
+      tx,
+      project.id,
+      analysis.opportunityKeywords
+    );
+  }
+
   log.info("Project created", {
     projectId: project.id,
     clientId,
     domain: prospect.domain,
     hasAnalysis: !!analysis,
+    importedKeywordsCount,
   });
 
   // Return with expected shape for tests
