@@ -24,7 +24,7 @@ const CreateConnectionSchema = z.object({
   platform: z.enum(PLATFORM_TYPES),
   siteUrl: z.string().url("siteUrl must be a valid URL"),
   displayName: z.string().optional(),
-  credentials: z.record(z.unknown()),
+  credentials: z.record(z.string(), z.unknown()),
 });
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
