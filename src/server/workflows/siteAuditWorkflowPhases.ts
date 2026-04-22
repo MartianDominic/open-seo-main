@@ -13,15 +13,85 @@ import type {
   LighthouseResult,
   StepPageResult,
 } from "@/server/lib/audit/types";
+import type { SiteContext } from "@/server/lib/audit/checks/types";
 import { captureServerEvent } from "@/server/lib/posthog";
 import { runCrawlPhase, type CrawlPhaseResult } from "@/server/workflows/siteAuditWorkflowCrawl";
-import { runTier2Checks } from "@/server/lib/audit/checks/runner";
+import { runTier2Checks, runTier3Checks, runTier4Checks } from "@/server/lib/audit/checks/runner";
 import { FindingsRepository } from "@/server/features/audit/repositories/FindingsRepository";
 import { createLogger } from "@/server/lib/logger";
 
 const log = createLogger({ module: "audit-phases" });
 
 const LIGHTHOUSE_URL_BATCH_SIZE = 10;
+
+/** DoS mitigation limits per threat model T-32-07, T-32-08 */
+const MAX_CLICK_DEPTH = 10;
+const MAX_BFS_ITERATIONS = 10_000;
+const MAX_LINK_GRAPH_SIZE = 50_000;
+
+/**
+ * Build SiteContext from crawled pages for Tier 4 checks.
+ * Constructs link graph and calculates click depths via BFS from homepage.
+ */
+function buildSiteContext(pages: StepPageResult[]): SiteContext {
+  const linkGraph = new Map<string, string[]>();
+
+  // Build link graph from internal links (limit per T-32-08)
+  let totalLinks = 0;
+  for (const page of pages) {
+    if (page.internalLinks && totalLinks < MAX_LINK_GRAPH_SIZE) {
+      const linksToAdd = page.internalLinks.slice(
+        0,
+        MAX_LINK_GRAPH_SIZE - totalLinks
+      );
+      linkGraph.set(page.url, linksToAdd);
+      totalLinks += linksToAdd.length;
+    }
+  }
+
+  // Calculate click depths via BFS from homepage
+  const clickDepths = new Map<string, number>();
+  const homepage = pages.find((p) => {
+    try {
+      return new URL(p.url).pathname === "/";
+    } catch {
+      return false;
+    }
+  });
+
+  if (homepage) {
+    clickDepths.set(homepage.url, 0);
+    const queue: Array<{ url: string; depth: number }> = [
+      { url: homepage.url, depth: 0 },
+    ];
+    let iterations = 0;
+
+    while (queue.length > 0 && iterations < MAX_BFS_ITERATIONS) {
+      iterations++;
+      const item = queue.shift();
+      if (!item) break;
+
+      const { url, depth } = item;
+
+      // Stop at max depth per threat model T-32-07
+      if (depth >= MAX_CLICK_DEPTH) continue;
+
+      const links = linkGraph.get(url) ?? [];
+      for (const link of links) {
+        if (!clickDepths.has(link)) {
+          clickDepths.set(link, depth + 1);
+          queue.push({ url: link, depth: depth + 1 });
+        }
+      }
+    }
+  }
+
+  return {
+    totalPages: pages.length,
+    linkGraph,
+    clickDepths,
+  };
+}
 
 function countLighthouseBatchResults(results: LighthouseResult[]): {
   completed: number;

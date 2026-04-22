@@ -93,3 +93,28 @@ export async function runLocalChecks(
 ): Promise<CheckResult[]> {
   return runChecks(html, url, { tiers: [1, 2], keyword });
 }
+
+/**
+ * Run only Tier 3 checks (API-based - CrUX, GSC, GA4).
+ * These checks gracefully skip when API data is unavailable.
+ */
+export async function runTier3Checks(
+  html: string,
+  url: string,
+  keyword?: string
+): Promise<CheckResult[]> {
+  return runChecks(html, url, { tiers: [3], keyword });
+}
+
+/**
+ * Run only Tier 4 checks (crawl-based - site architecture).
+ * Requires SiteContext with link graph and click depths.
+ */
+export async function runTier4Checks(
+  html: string,
+  url: string,
+  siteContext: import("./types").SiteContext,
+  keyword?: string
+): Promise<CheckResult[]> {
+  return runChecks(html, url, { tiers: [4], keyword, siteContext });
+}
