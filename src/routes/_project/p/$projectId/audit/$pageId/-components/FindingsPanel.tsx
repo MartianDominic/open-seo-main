@@ -3,8 +3,8 @@
  * Phase 32: 107 SEO Checks Implementation
  */
 import { useState } from "react";
-import { cn } from "@/lib/utils";
-import type { CheckCategory, CheckSeverity } from "@/server/lib/audit/checks/types";
+import { cn } from "@/client/lib/utils";
+import type { CheckSeverity } from "@/server/lib/audit/checks/types";
 
 interface Finding {
   id: string;

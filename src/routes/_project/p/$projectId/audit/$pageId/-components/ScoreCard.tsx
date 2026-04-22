@@ -2,7 +2,7 @@
  * ScoreCard component for displaying on-page SEO score.
  * Phase 32: 107 SEO Checks Implementation
  */
-import { cn } from "@/lib/utils";
+import { cn } from "@/client/lib/utils";
 import type { ScoreBreakdown } from "@/server/lib/audit/checks/types";
 
 interface ScoreCardProps {

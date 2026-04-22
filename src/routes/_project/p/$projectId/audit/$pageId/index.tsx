@@ -6,6 +6,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { ScoreCard } from "./-components/ScoreCard";
 import { FindingsPanel } from "./-components/FindingsPanel";
 
+// @ts-expect-error - Route path not in generated types yet
 export const Route = createFileRoute("/_project/p/$projectId/audit/$pageId/")({
   component: AuditPageDetail,
 });

@@ -21,6 +21,9 @@ export {
   clearRegistry,
 } from "./registry";
 
+// Import for use in verifyAllRegistration
+import { getChecksByTier } from "./registry";
+
 // Re-export types
 export type {
   CheckResult,
