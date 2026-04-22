@@ -6,7 +6,7 @@
  * Lists all prospects for the current workspace with bulk actions and pipeline chart.
  */
 import { useState, useCallback, useMemo } from "react";
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Loader2, Plus, Upload } from "lucide-react";
 import { listProspects, getStageDistribution, getRemainingQuota } from "@/serverFunctions/prospects";
@@ -28,7 +28,6 @@ function ProspectsListPage() {
   const [importDialogOpen, setImportDialogOpen] = useState(false);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const queryClient = useQueryClient();
-  const navigate = useNavigate();
 
   // Fetch prospects list
   const { data, isLoading, error } = useQuery({
