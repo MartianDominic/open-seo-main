@@ -145,3 +145,60 @@ export interface WebflowAdapterConfig {
  * Factory function type for creating adapters from config.
  */
 export type AdapterFactory = (config: unknown) => PlatformAdapter;
+
+// ============================================================================
+// Write Operations Interface (Phase 33-03)
+// ============================================================================
+
+/**
+ * Write result from platform operations.
+ */
+export interface WriteResult {
+  success: boolean;
+  error?: string;
+}
+
+/**
+ * Extended adapter interface for platforms that support write operations.
+ * Adapters implementing this can be used with the auto-fix system.
+ */
+export interface PlatformWriteAdapter extends PlatformAdapter {
+  /**
+   * Read a specific field value from a resource.
+   * @param resourceId Platform-specific resource ID
+   * @param field Field name (e.g., 'title', 'meta_description', 'alt_text')
+   * @returns Current value or null if not set
+   */
+  readField(resourceId: string, field: string): Promise<string | null>;
+
+  /**
+   * Write a value to a specific field on a resource.
+   * @param resourceId Platform-specific resource ID
+   * @param field Field name
+   * @param value New value to set
+   */
+  writeField(resourceId: string, field: string, value: string): Promise<WriteResult>;
+
+  /**
+   * Update multiple meta fields at once.
+   * More efficient than multiple writeField calls for platforms that support bulk updates.
+   */
+  updateMeta(resourceId: string, meta: Record<string, string>): Promise<WriteResult>;
+
+  /**
+   * Update image alt text (optional - not all platforms support this).
+   */
+  updateImageAlt?(imageId: string, alt: string): Promise<WriteResult>;
+
+  /**
+   * Update image HTML attributes (width, height, loading).
+   */
+  updateImageAttributes?(imageId: string, attributes: Record<string, string>): Promise<WriteResult>;
+}
+
+/**
+ * Type guard to check if an adapter supports write operations.
+ */
+export function isWriteAdapter(adapter: PlatformAdapter): adapter is PlatformWriteAdapter {
+  return 'readField' in adapter && 'writeField' in adapter && 'updateMeta' in adapter;
+}
