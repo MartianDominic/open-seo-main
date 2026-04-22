@@ -14,7 +14,12 @@ import type {
   StepPageResult,
 } from "@/server/lib/audit/types";
 import { captureServerEvent } from "@/server/lib/posthog";
-import { runCrawlPhase } from "@/server/workflows/siteAuditWorkflowCrawl";
+import { runCrawlPhase, type CrawlPhaseResult } from "@/server/workflows/siteAuditWorkflowCrawl";
+import { runTier2Checks } from "@/server/lib/audit/checks/runner";
+import { FindingsRepository } from "@/server/features/audit/repositories/FindingsRepository";
+import { createLogger } from "@/server/lib/logger";
+
+const log = createLogger({ module: "audit-phases" });
 
 const LIGHTHOUSE_URL_BATCH_SIZE = 10;
 
@@ -66,7 +71,7 @@ export async function runAuditPhases(
     maxPages,
   );
   const robots = await fetchRobotsTxt(origin);
-  const allPages = await runCrawlPhase(step, {
+  const crawlResult = await runCrawlPhase(step, {
     auditId,
     workflowInstanceId,
     origin,
@@ -75,6 +80,11 @@ export async function runAuditPhases(
     robots,
     sitemapUrls: discovery.sitemapUrls,
   });
+  const { allPages, htmlByPageId } = crawlResult;
+
+  // Run Tier 2 checks after crawl completes (light calculations)
+  await runTier2ChecksPhase(step, auditId, workflowInstanceId, allPages, htmlByPageId);
+
   const lighthouseResults = await runLighthousePhase(step, {
     auditId,
     workflowInstanceId,
@@ -110,6 +120,55 @@ async function runDiscoveryPhase(
       currentPhase: "crawling",
     });
     return { sitemapUrls: result.urls };
+  });
+}
+
+/**
+ * Run Tier 2 checks (light calculations) after crawl completes.
+ * Tier 2 includes: reading level, keyword density, word count analysis,
+ * schema completeness, anchor analysis, freshness signals, and mobile checks.
+ * Runs in <500ms per page per threat model requirements.
+ */
+async function runTier2ChecksPhase(
+  step: WorkflowStep,
+  auditId: string,
+  workflowInstanceId: string,
+  allPages: StepPageResult[],
+  htmlByPageId: Map<string, string>,
+): Promise<void> {
+  return step.do("run-tier2-checks", async () => {
+    // Update phase to analyzing
+    await AuditRepository.updateAuditProgress(auditId, workflowInstanceId, {
+      currentPhase: "analyzing",
+    });
+
+    // Run Tier 2 checks for each crawled page
+    // Tier 2 requires more computation but still no external APIs
+    for (const page of allPages) {
+      const html = htmlByPageId.get(page.id);
+
+      // Skip pages without HTML (non-HTML content types, failed fetches)
+      if (!html || page.statusCode !== 200) {
+        continue;
+      }
+
+      try {
+        // Run Tier 2 checks - light calculations
+        const results = await runTier2Checks(html, page.url);
+
+        // Persist findings to database
+        if (results.length > 0) {
+          await FindingsRepository.insertFindings(auditId, page.id, results);
+        }
+      } catch (error) {
+        // Log but don't fail the audit - checks are non-blocking
+        log.warn("Tier 2 checks failed for page", {
+          pageId: page.id,
+          url: page.url,
+          error: error instanceof Error ? error.message : String(error),
+        });
+      }
+    }
   });
 }
 

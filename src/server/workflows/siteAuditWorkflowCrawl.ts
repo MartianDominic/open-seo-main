@@ -41,7 +41,7 @@ type CrawlPhaseParams = {
 export async function runCrawlPhase(
   step: WorkflowStep,
   params: CrawlPhaseParams,
-): Promise<StepPageResult[]> {
+): Promise<CrawlPhaseResult> {
   const {
     auditId,
     workflowInstanceId,
@@ -55,6 +55,7 @@ export async function runCrawlPhase(
   const queue: string[] = [];
   const queued = new Set<string>();
   const allPages: StepPageResult[] = [];
+  const allHtmlByPageId = new Map<string, string>();
 
   seedCrawlQueue({
     startUrl,
@@ -86,6 +87,11 @@ export async function runCrawlPhase(
     );
     allPages.push(...crawledBatch);
 
+    // Accumulate HTML for Tier 2 checks (run after crawl completes)
+    for (const [pageId, html] of htmlByPageId) {
+      allHtmlByPageId.set(pageId, html);
+    }
+
     // Run Tier 1 checks on pages with HTML (instant, free - DOM/regex only)
     await runTier1ChecksForBatch(step, crawlBatchIndex, auditId, crawledBatch, htmlByPageId);
 
@@ -110,7 +116,7 @@ export async function runCrawlPhase(
     });
   }
 
-  return allPages;
+  return { allPages, htmlByPageId: allHtmlByPageId };
 }
 
 function seedCrawlQueue({
@@ -174,6 +180,12 @@ function selectNextCrawlBatch(
 
 interface CrawlBatchResult {
   pages: StepPageResult[];
+  htmlByPageId: Map<string, string>;
+}
+
+/** Result of the crawl phase including HTML for Tier 2 checks */
+export interface CrawlPhaseResult {
+  allPages: StepPageResult[];
   htmlByPageId: Map<string, string>;
 }
 
