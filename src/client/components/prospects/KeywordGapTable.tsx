@@ -164,18 +164,23 @@ export function calculateGapSummary(gaps: KeywordGap[]): GapSummary {
 interface KeywordGapTableProps {
   gaps: KeywordGap[];
   onAddTarget?: (keyword: string) => void;
+  /** Pre-filtered gaps from parent (if parent handles filtering) */
+  filteredGaps?: KeywordGap[];
 }
 
 /**
  * Renders a sortable table of keyword gaps
  */
-export function KeywordGapTable({ gaps, onAddTarget }: KeywordGapTableProps) {
+export function KeywordGapTable({ gaps, onAddTarget, filteredGaps }: KeywordGapTableProps) {
   const [sortColumn, setSortColumn] = useState<SortColumn>("trafficPotential");
   const [sortDirection, setSortDirection] = useState<SortDirection>("desc");
 
+  // Use filteredGaps if provided, otherwise use all gaps
+  const dataToSort = filteredGaps ?? gaps;
+
   const sortedGaps = useMemo(
-    () => sortKeywordGaps(gaps, sortColumn, sortDirection),
-    [gaps, sortColumn, sortDirection]
+    () => sortKeywordGaps(dataToSort, sortColumn, sortDirection),
+    [dataToSort, sortColumn, sortDirection]
   );
 
   const handleSort = (column: SortColumn) => {
@@ -191,6 +196,15 @@ export function KeywordGapTable({ gaps, onAddTarget }: KeywordGapTableProps) {
     return (
       <div className="text-center py-8 text-muted-foreground">
         No keyword gaps found.
+      </div>
+    );
+  }
+
+  // Show filtered message if filters applied but no results
+  if (sortedGaps.length === 0 && gaps.length > 0) {
+    return (
+      <div className="text-center py-8 text-muted-foreground">
+        No keyword gaps match the current filters.
       </div>
     );
   }
