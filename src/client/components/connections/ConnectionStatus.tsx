@@ -7,7 +7,7 @@
  */
 import { Badge } from "@/client/components/ui/badge";
 import { CheckCircle2, Clock, AlertCircle, Unplug } from "lucide-react";
-import type { ConnectionWithoutCredentials, ConnectionStatus as ConnectionStatusType } from "@/server/features/connections";
+import type { ConnectionWithoutCredentials } from "@/server/features/connections";
 
 interface ConnectionStatusProps {
   connection: ConnectionWithoutCredentials;

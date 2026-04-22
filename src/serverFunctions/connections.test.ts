@@ -22,7 +22,7 @@ const PLATFORM_TYPES = [
   "pixel",
 ] as const;
 
-type PlatformType = (typeof PLATFORM_TYPES)[number];
+// type PlatformType = (typeof PLATFORM_TYPES)[number]; // Unused
 
 // ============================================================================
 // Schema Tests (Validation)

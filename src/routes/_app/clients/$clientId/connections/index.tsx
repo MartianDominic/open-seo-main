@@ -43,6 +43,7 @@ import {
 } from "@/serverFunctions/connections";
 import type { ConnectionWithoutCredentials } from "@/server/features/connections";
 
+// @ts-expect-error - Route not yet in generated route tree
 export const Route = createFileRoute("/_app/clients/$clientId/connections/")({
   component: ConnectionsListPage,
 });
@@ -59,6 +60,7 @@ const PLATFORM_LABELS: Record<string, string> = {
 
 function ConnectionsListPage() {
   const { clientId } = useParams({
+    // @ts-ignore - Route not yet in generated route tree
     from: "/_app/clients/$clientId/connections/",
   });
   const queryClient = useQueryClient();
@@ -122,7 +124,9 @@ function ConnectionsListPage() {
             </div>
             <Button asChild>
               <Link
+                // @ts-ignore - Route not yet in generated route tree
                 to="/clients/$clientId/connections/new"
+                // @ts-ignore - Route not yet in generated route tree
                 params={{ clientId }}
               >
                 <Plus className="w-4 h-4 mr-2" />
@@ -139,7 +143,9 @@ function ConnectionsListPage() {
               </p>
               <Button asChild variant="outline">
                 <Link
+                  // @ts-ignore - Route not yet in generated route tree
                   to="/clients/$clientId/connections/new"
+                  // @ts-ignore - Route not yet in generated route tree
                   params={{ clientId }}
                 >
                   <Plus className="w-4 h-4 mr-2" />
