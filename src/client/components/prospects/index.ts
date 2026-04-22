@@ -33,3 +33,6 @@ export { OpportunitySummaryCard } from "./OpportunitySummaryCard";
 export { OpportunityKeywordsTab } from "./OpportunityKeywordsTab";
 
 export { StatusBadge } from "./StatusBadge";
+
+// Phase 30.5: CSV Import
+export { CsvImportDialog } from "./CsvImportDialog";
