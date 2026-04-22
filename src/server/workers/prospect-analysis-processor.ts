@@ -30,6 +30,7 @@ import {
 } from "@/server/lib/scraper/businessExtractor";
 import { OpportunityDiscoveryService } from "@/server/lib/opportunity/OpportunityDiscoveryService";
 import { calculatePriorityScore } from "@/server/lib/priority/calculatePriorityScore";
+import { PipelineService } from "@/server/features/prospects/services/PipelineService";
 
 const log = createLogger({ module: "prospect-analysis-processor" });
 
@@ -265,6 +266,24 @@ export default async function processProspectAnalysis(
       log.info("Priority score calculated", {
         prospectId,
         priorityScore,
+      });
+    }
+
+    // Phase 30.5-04: Auto-transition pipeline stage after analysis
+    try {
+      await PipelineService.handleAnalysisComplete(prospectId, priorityScore);
+      log.info("Pipeline stage transition completed", {
+        prospectId,
+        priorityScore,
+      });
+    } catch (pipelineError) {
+      // Don't fail the job if pipeline transition fails
+      log.warn("Pipeline stage transition failed", {
+        prospectId,
+        error:
+          pipelineError instanceof Error
+            ? pipelineError.message
+            : String(pipelineError),
       });
     }
 
