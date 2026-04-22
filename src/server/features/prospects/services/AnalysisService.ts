@@ -16,12 +16,14 @@ import {
   type CompetitorKeywordItem,
   type KeywordGap,
   type ScrapedContent,
+  type OpportunityKeyword,
 } from "@/db/prospect-schema";
 import {
   submitProspectAnalysis,
   getWorkspaceAnalysisCountToday,
   type ProspectAnalysisType,
 } from "@/server/queues/prospectAnalysisQueue";
+export type { ProspectAnalysisType } from "@/server/queues/prospectAnalysisQueue";
 import { AppError } from "@/server/lib/errors";
 import { nanoid } from "nanoid";
 import { createLogger } from "@/server/lib/logger";
@@ -62,6 +64,7 @@ export interface AnalysisResults {
   competitorKeywords?: CompetitorKeywordItem[];
   keywordGaps?: KeywordGap[]; // Enriched with achievability scores (Phase 28-02)
   scrapedContent?: ScrapedContent;
+  opportunityKeywords?: OpportunityKeyword[]; // AI-discovered opportunities (Phase 29)
   costCents: number;
 }
 
@@ -174,6 +177,7 @@ export const AnalysisService = {
         competitorKeywords: results.competitorKeywords,
         keywordGaps: results.keywordGaps,
         scrapedContent: results.scrapedContent,
+        opportunityKeywords: results.opportunityKeywords,
         costCents: results.costCents,
         completedAt: now,
       })
@@ -259,5 +263,107 @@ export const AnalysisService = {
   async getRemainingAnalysesToday(workspaceId: string): Promise<number> {
     const used = await getWorkspaceAnalysisCountToday(workspaceId);
     return Math.max(0, MAX_ANALYSES_PER_DAY - used);
+  },
+
+  /**
+   * Bulk queue analysis for multiple prospects.
+   * Respects daily quota - queues up to remaining limit.
+   *
+   * @returns Count of queued and skipped prospects
+   */
+  async bulkQueueAnalysis(input: {
+    prospectIds: string[];
+    workspaceId: string;
+    analysisType: ProspectAnalysisType;
+    targetRegion?: string;
+    targetLanguage?: string;
+    triggeredBy: string;
+  }): Promise<{
+    queuedCount: number;
+    skippedCount: number;
+    queuedIds: string[];
+    skippedIds: string[];
+    remainingQuota: number;
+  }> {
+    // Check remaining quota
+    const todayCount = await getWorkspaceAnalysisCountToday(input.workspaceId);
+    const remainingQuota = Math.max(0, MAX_ANALYSES_PER_DAY - todayCount);
+
+    if (remainingQuota === 0) {
+      return {
+        queuedCount: 0,
+        skippedCount: input.prospectIds.length,
+        queuedIds: [],
+        skippedIds: input.prospectIds,
+        remainingQuota: 0,
+      };
+    }
+
+    // Verify prospects exist and belong to workspace
+    const validProspects = await db
+      .select({ id: prospects.id, domain: prospects.domain, status: prospects.status })
+      .from(prospects)
+      .where(
+        and(
+          eq(prospects.workspaceId, input.workspaceId),
+        ),
+      );
+
+    const validProspectIds = new Set(validProspects.map((p) => p.id));
+    const requestedIds = input.prospectIds.filter((id) => validProspectIds.has(id));
+
+    // Filter out prospects already analyzing
+    const analyzingIds = new Set(
+      validProspects
+        .filter((p) => p.status === "analyzing")
+        .map((p) => p.id),
+    );
+    const eligibleIds = requestedIds.filter((id) => !analyzingIds.has(id));
+
+    // Queue up to remaining quota
+    const toQueue = eligibleIds.slice(0, remainingQuota);
+    const skipped = eligibleIds.slice(remainingQuota);
+
+    // Also add invalid/analyzing IDs to skipped
+    const invalidIds = input.prospectIds.filter((id) => !validProspectIds.has(id));
+    const analyzingRequestedIds = requestedIds.filter((id) => analyzingIds.has(id));
+
+    const queuedIds: string[] = [];
+
+    for (const prospectId of toQueue) {
+      try {
+        const { analysisId } = await this.triggerAnalysis({
+          prospectId,
+          workspaceId: input.workspaceId,
+          analysisType: input.analysisType,
+          targetRegion: input.targetRegion,
+          targetLanguage: input.targetLanguage,
+          triggeredBy: input.triggeredBy,
+        });
+        queuedIds.push(prospectId);
+        log.info("Bulk queued analysis", { prospectId, analysisId });
+      } catch (error) {
+        log.warn("Failed to queue analysis in bulk", { prospectId, error });
+        skipped.push(prospectId);
+      }
+    }
+
+    const allSkipped = [...skipped, ...invalidIds, ...analyzingRequestedIds];
+    const newRemainingQuota = Math.max(0, remainingQuota - queuedIds.length);
+
+    log.info("Bulk analysis queuing complete", {
+      requested: input.prospectIds.length,
+      queued: queuedIds.length,
+      skipped: allSkipped.length,
+      remainingQuota: newRemainingQuota,
+    });
+
+    return {
+      queuedCount: queuedIds.length,
+      skippedCount: allSkipped.length,
+      queuedIds,
+      skippedIds: allSkipped,
+      remainingQuota: newRemainingQuota,
+    };
   },
 };

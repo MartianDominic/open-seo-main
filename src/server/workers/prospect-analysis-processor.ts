@@ -28,6 +28,7 @@ import {
   extractBusinessInfo,
   type ScrapedContent,
 } from "@/server/lib/scraper/businessExtractor";
+import { OpportunityDiscoveryService } from "@/server/lib/opportunity/OpportunityDiscoveryService";
 
 const log = createLogger({ module: "prospect-analysis-processor" });
 
@@ -204,6 +205,36 @@ export default async function processProspectAnalysis(
       // Continue without scraped content - it's not critical for the analysis
     }
 
+    // Step 6: AI Opportunity Discovery (if we have business info)
+    let opportunityKeywords: Awaited<
+      ReturnType<typeof OpportunityDiscoveryService.discoverOpportunities>
+    >["keywords"] = [];
+    if (scrapedContent?.businessInfo) {
+      try {
+        log.info("Running AI opportunity discovery", { domain });
+        const discoveryResult = await OpportunityDiscoveryService.discoverOpportunities({
+          businessInfo: scrapedContent.businessInfo,
+          locationCode,
+          languageCode,
+        });
+        opportunityKeywords = discoveryResult.keywords;
+        totalCostCents += Math.round(discoveryResult.costUsd * 100);
+
+        log.info("Opportunity discovery completed", {
+          domain,
+          keywordsDiscovered: opportunityKeywords.length,
+          totalVolume: discoveryResult.summary.totalVolume,
+          avgScore: discoveryResult.summary.avgOpportunityScore,
+        });
+      } catch (error) {
+        log.warn("Opportunity discovery failed, continuing without AI keywords", {
+          domain,
+          error: error instanceof Error ? error.message : String(error),
+        });
+        // Continue without opportunity keywords - not critical for analysis
+      }
+    }
+
     // Update analysis with results
     await AnalysisService.updateAnalysisResult(analysisId, {
       domainMetrics,
@@ -212,6 +243,7 @@ export default async function processProspectAnalysis(
       competitorKeywords: [], // Legacy field, gaps now in keywordGaps
       keywordGaps, // Enriched with achievability scores
       scrapedContent,
+      opportunityKeywords, // AI-discovered opportunities (Phase 29)
       costCents: totalCostCents,
     });
 
