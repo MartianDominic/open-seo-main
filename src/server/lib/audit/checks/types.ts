@@ -37,6 +37,25 @@ export type CheckCategory =
   | "differentiation";
 
 /**
+ * Extended page analysis data for Tier 2+ checks.
+ * Fields may be populated by additional analysis passes.
+ */
+export interface ExtendedPageAnalysis extends PageAnalysis {
+  /** Query type classification (informational, transactional, etc.) */
+  queryType?: "informational" | "transactional" | "commercial" | "navigational";
+  /** Whether content is YMYL (Your Money Your Life) */
+  isYmyl?: boolean;
+  /** Sitemap lastmod date for this URL */
+  sitemapLastmod?: string;
+  /** Content hash for change detection */
+  contentHash?: string;
+  /** Previous content hash (from last crawl) */
+  previousContentHash?: string;
+  /** Previous dateModified value (from last crawl) */
+  previousDateModified?: string;
+}
+
+/**
  * Context passed to each check function.
  * Contains parsed DOM, raw HTML, URL, and optional analysis data.
  */
@@ -49,8 +68,8 @@ export interface CheckContext {
   url: string;
   /** Target keyword for keyword-based checks (optional) */
   keyword?: string;
-  /** Pre-computed page analysis data */
-  pageAnalysis?: PageAnalysis;
+  /** Pre-computed page analysis data (may include extended fields) */
+  pageAnalysis?: PageAnalysis | ExtendedPageAnalysis;
   /** Site-wide context for Tier 4 checks */
   siteContext?: SiteContext;
 }

@@ -5,7 +5,7 @@
  * Validates structured data completeness for E-E-A-T signals.
  */
 import { registerCheck } from "../registry";
-import type { CheckContext, CheckResult } from "../types";
+import type { CheckContext, CheckResult, ExtendedPageAnalysis } from "../types";
 
 /**
  * Extract JSON-LD schemas from page.
@@ -454,8 +454,9 @@ registerCheck({
       findSchemaByType(schemas, "FinancialProduct");
 
     // Detect YMYL content from page analysis or URL patterns
+    const extendedAnalysis = ctx.pageAnalysis as ExtendedPageAnalysis | undefined;
     const isYmyl =
-      ctx.pageAnalysis?.isYmyl ??
+      extendedAnalysis?.isYmyl ??
       /health|medical|finance|money|legal|safety|news/i.test(ctx.url);
 
     if (!isYmyl) {

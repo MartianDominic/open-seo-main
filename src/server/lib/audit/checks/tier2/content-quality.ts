@@ -5,7 +5,7 @@
  * These checks require light computation on text content.
  */
 import { registerCheck } from "../registry";
-import type { CheckContext, CheckResult } from "../types";
+import type { CheckContext, CheckResult, ExtendedPageAnalysis } from "../types";
 
 /**
  * Count syllables in a word using standard heuristics.
@@ -263,8 +263,8 @@ registerCheck({
     const wordCount = countWords(text);
 
     // Determine query type from page analysis or default
-    const queryType =
-      ctx.pageAnalysis?.queryType ?? "default";
+    const extendedAnalysis = ctx.pageAnalysis as ExtendedPageAnalysis | undefined;
+    const queryType = extendedAnalysis?.queryType ?? "default";
     const benchmark = WORD_COUNT_BENCHMARKS[queryType] ?? WORD_COUNT_BENCHMARKS.default;
 
     const passed = wordCount >= benchmark.min && wordCount <= benchmark.max;

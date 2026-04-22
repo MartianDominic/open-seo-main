@@ -5,7 +5,7 @@
  * Validates freshness signal consistency for triangulation.
  */
 import { registerCheck } from "../registry";
-import type { CheckContext, CheckResult } from "../types";
+import type { CheckContext, CheckResult, ExtendedPageAnalysis } from "../types";
 
 /**
  * Extract JSON-LD schemas from page.
@@ -216,7 +216,8 @@ registerCheck({
   autoEditable: false,
   run: (ctx: CheckContext): CheckResult => {
     // This check requires sitemap data which isn't available in page-only context
-    const sitemapLastmod = ctx.pageAnalysis?.sitemapLastmod;
+    const extendedAnalysis = ctx.pageAnalysis as ExtendedPageAnalysis | undefined;
+    const sitemapLastmod = extendedAnalysis?.sitemapLastmod;
 
     if (!sitemapLastmod) {
       return {
@@ -293,9 +294,10 @@ registerCheck({
   autoEditable: false,
   run: (ctx: CheckContext): CheckResult => {
     // This check requires historical data (previous content hash)
-    const previousContentHash = ctx.pageAnalysis?.previousContentHash;
-    const currentContentHash = ctx.pageAnalysis?.contentHash;
-    const previousDateModified = ctx.pageAnalysis?.previousDateModified;
+    const extendedAnalysis = ctx.pageAnalysis as ExtendedPageAnalysis | undefined;
+    const previousContentHash = extendedAnalysis?.previousContentHash;
+    const currentContentHash = extendedAnalysis?.contentHash;
+    const previousDateModified = extendedAnalysis?.previousDateModified;
 
     if (!previousContentHash || !currentContentHash || !previousDateModified) {
       return {

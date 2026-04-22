@@ -142,7 +142,7 @@ describe("Tier 2 Content Quality Metrics", () => {
 
       expect(result.checkId).toBe("T2-03");
       expect(result.passed).toBe(false);
-      expect(result.details?.wordCount).toBeLessThan(result.details?.minWords);
+      expect(result.details?.wordCount as number).toBeLessThan(result.details?.minWords as number);
     });
   });
 
@@ -179,7 +179,7 @@ describe("Tier 2 Content Quality Metrics", () => {
 
       expect(result.checkId).toBe("T2-04");
       expect(result.passed).toBe(false);
-      expect(result.details?.statisticsFound).toBeLessThan(result.details?.expectedStatistics);
+      expect(result.details?.statisticsFound as number).toBeLessThan(result.details?.expectedStatistics as number);
     });
 
     it("should skip for short content", async () => {
