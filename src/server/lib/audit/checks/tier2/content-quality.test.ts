@@ -30,6 +30,17 @@ describe("Tier 2 Content Quality Metrics", () => {
       expect(result.details?.gradeLevel).toBeLessThanOrEqual(9);
     });
 
+    it("should handle empty content gracefully", async () => {
+      const check = getCheckById("T2-01");
+      const html = `<html><body></body></html>`;
+      const $ = cheerio.load(html);
+
+      const result = await check!.run({ $, html, url: "https://example.com" });
+
+      expect(result.passed).toBe(true);
+      expect(result.details?.skipped).toBe(true);
+    });
+
     it("should fail for complex academic text", async () => {
       const check = getCheckById("T2-01");
 
@@ -131,6 +142,20 @@ describe("Tier 2 Content Quality Metrics", () => {
       expect(result.passed).toBe(true);
     });
 
+    it("should pass for 1500 words within default range", async () => {
+      const check = getCheckById("T2-03");
+
+      // 1500 words (within default 800-1800 range)
+      const html = `<html><body><p>${"word ".repeat(1500)}</p></body></html>`;
+      const $ = cheerio.load(html);
+
+      const result = await check!.run({ $, html, url: "https://example.com" });
+
+      expect(result.checkId).toBe("T2-03");
+      expect(result.passed).toBe(true);
+      expect(result.details?.wordCount).toBe(1500);
+    });
+
     it("should fail for content below minimum", async () => {
       const check = getCheckById("T2-03");
 
@@ -143,6 +168,19 @@ describe("Tier 2 Content Quality Metrics", () => {
       expect(result.checkId).toBe("T2-03");
       expect(result.passed).toBe(false);
       expect(result.details?.wordCount as number).toBeLessThan(result.details?.minWords as number);
+    });
+
+    it("should handle empty content", async () => {
+      const check = getCheckById("T2-03");
+
+      const html = `<html><body></body></html>`;
+      const $ = cheerio.load(html);
+
+      const result = await check!.run({ $, html, url: "https://example.com" });
+
+      expect(result.checkId).toBe("T2-03");
+      expect(result.passed).toBe(false);
+      expect(result.details?.wordCount).toBe(0);
     });
   });
 
@@ -255,6 +293,45 @@ describe("Tier 2 Content Quality Metrics", () => {
 
       expect(result.passed).toBe(true);
       expect(result.details?.skipped).toBe(true);
+    });
+
+    it("should handle single-section content", async () => {
+      const check = getCheckById("T2-05");
+
+      // Single section with 200 words (within 167-278)
+      const section = "word ".repeat(200);
+      const html = `
+        <html><body>
+          <h2>Only Section</h2>
+          <p>${section}</p>
+        </body></html>
+      `;
+      const $ = cheerio.load(html);
+
+      const result = await check!.run({ $, html, url: "https://example.com" });
+
+      expect(result.checkId).toBe("T2-05");
+      expect(result.passed).toBe(true);
+    });
+
+    it("should handle empty sections", async () => {
+      const check = getCheckById("T2-05");
+
+      // Sections with no content between them
+      const html = `
+        <html><body>
+          <h2>Section 1</h2>
+          <h2>Section 2</h2>
+          <h2>Section 3</h2>
+        </body></html>
+      `;
+      const $ = cheerio.load(html);
+
+      const result = await check!.run({ $, html, url: "https://example.com" });
+
+      expect(result.checkId).toBe("T2-05");
+      // Empty sections should fail the word count check
+      expect(result.passed).toBe(false);
     });
   });
 });
