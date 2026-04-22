@@ -259,4 +259,141 @@ describe("Tier 2 Performance", () => {
     expect(result.passed).toBe(true);
     expect(result.details?.skipped).toBe(true);
   });
+
+  it("should handle Flesch-Kincaid on very long content without timeout", async () => {
+    // Generate ~10,000 words of content (well under 50k word limit)
+    const longContent = "The quick brown fox jumps over the lazy dog. ".repeat(1000);
+    const html = `
+      <html><body>
+        <h1>Long Article for Reading Level Test</h1>
+        <p>${longContent}</p>
+      </body></html>
+    `;
+    const $ = cheerio.load(html);
+    const ctx = { $, html, url: "https://example.com" };
+
+    const readingLevelCheck = getTier2Checks().find((c) => c.id === "T2-01");
+    expect(readingLevelCheck).toBeDefined();
+
+    const startTime = performance.now();
+    const result = await readingLevelCheck!.run(ctx);
+    const duration = performance.now() - startTime;
+
+    // Should complete well under 500ms even for long content
+    expect(duration).toBeLessThan(500);
+    expect(result.checkId).toBe("T2-01");
+    expect(result.details?.gradeLevel).toBeDefined();
+  });
+
+  it("should handle anchor analysis with 100+ internal links", async () => {
+    // Generate 150 internal links with various anchor texts
+    const links = Array.from(
+      { length: 150 },
+      (_, i) => `<a href="/page-${i}">Link text variation ${i % 20}</a>`
+    ).join("\n");
+
+    const html = `
+      <html><body>
+        <h1>Page with Many Links</h1>
+        <p>${"content ".repeat(200)}</p>
+        <div class="links">
+          ${links}
+        </div>
+      </body></html>
+    `;
+    const $ = cheerio.load(html);
+    const ctx = { $, html, url: "https://example.com" };
+
+    // T2-06: >=10 unique anchor variations
+    // T2-08: Links evenly distributed
+    const anchorChecks = getTier2Checks().filter((c) =>
+      ["T2-06", "T2-07", "T2-08"].includes(c.id)
+    );
+    expect(anchorChecks.length).toBe(3);
+
+    const startTime = performance.now();
+    const results = await Promise.all(anchorChecks.map((check) => check.run(ctx)));
+    const duration = performance.now() - startTime;
+
+    // All anchor checks should complete quickly even with 150 links
+    expect(duration).toBeLessThan(100);
+    expect(results.length).toBe(3);
+
+    // Should properly analyze all links
+    for (const result of results) {
+      expect(result.message).toBeTruthy();
+    }
+  });
+
+  it("should handle complex nested schema JSON-LD", async () => {
+    const complexSchema = JSON.stringify({
+      "@context": "https://schema.org",
+      "@type": "Article",
+      "headline": "Complex Article",
+      "datePublished": "2024-03-15T10:00:00Z",
+      "dateModified": "2024-03-20T15:30:00Z",
+      "author": {
+        "@type": "Person",
+        "name": "John Doe",
+        "url": "https://example.com/authors/john",
+        "sameAs": [
+          "https://linkedin.com/in/johndoe",
+          "https://twitter.com/johndoe",
+          "https://github.com/johndoe",
+          "https://facebook.com/johndoe"
+        ]
+      },
+      "publisher": {
+        "@type": "Organization",
+        "name": "Example Corp",
+        "logo": {
+          "@type": "ImageObject",
+          "url": "https://example.com/logo.png",
+          "width": 200,
+          "height": 200
+        },
+        "sameAs": [
+          "https://wikipedia.org/wiki/Example",
+          "https://linkedin.com/company/example",
+          "https://twitter.com/example"
+        ]
+      },
+      "citation": [
+        {"@type": "CreativeWork", "name": "Source 1"},
+        {"@type": "CreativeWork", "name": "Source 2"}
+      ],
+      "mainEntityOfPage": {
+        "@type": "WebPage",
+        "@id": "https://example.com/article"
+      }
+    });
+
+    const html = `
+      <html><body>
+        <h1>Complex Schema Article</h1>
+        <p>${"content ".repeat(200)}</p>
+        <script type="application/ld+json">${complexSchema}</script>
+      </body></html>
+    `;
+    const $ = cheerio.load(html);
+    const ctx = { $, html, url: "https://example.com" };
+
+    // Run all schema-related checks (T2-09 to T2-14)
+    const schemaChecks = getTier2Checks().filter((c) =>
+      ["T2-09", "T2-10", "T2-11", "T2-12", "T2-13", "T2-14"].includes(c.id)
+    );
+    expect(schemaChecks.length).toBe(6);
+
+    const startTime = performance.now();
+    const results = await Promise.all(schemaChecks.map((check) => check.run(ctx)));
+    const duration = performance.now() - startTime;
+
+    // Schema parsing should be fast even for complex nested structures
+    expect(duration).toBeLessThan(100);
+    expect(results.length).toBe(6);
+
+    // With properly structured schema, most checks should pass
+    const passedChecks = results.filter((r) => r.passed);
+    expect(passedChecks.length).toBeGreaterThan(0);
+  });
 });
