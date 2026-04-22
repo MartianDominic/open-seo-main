@@ -148,6 +148,13 @@
       "when": 1776866200000,
       "tag": "0020_site_connections",
       "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "7",
+      "when": 1776894500000,
+      "tag": "0021_change_tracking_tables",
+      "breakpoints": true
     }
   ]
 }
