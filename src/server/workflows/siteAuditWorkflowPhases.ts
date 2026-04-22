@@ -164,6 +164,15 @@ export async function runAuditPhases(
     config,
     allPages,
   });
+
+  // Run Tier 3 checks (API-based: CrUX CWV, GSC, GA4)
+  // These checks use data from Lighthouse results when available
+  await runTier3ChecksPhase(step, auditId, workflowInstanceId, allPages, htmlByPageId);
+
+  // Run Tier 4 checks (crawl-based: site architecture, differentiation)
+  // These checks require site-wide context built from crawl data
+  await runTier4ChecksPhase(step, auditId, workflowInstanceId, allPages, htmlByPageId);
+
   await finalizeAudit({
     step,
     auditId,
@@ -233,6 +242,96 @@ async function runTier2ChecksPhase(
       } catch (error) {
         // Log but don't fail the audit - checks are non-blocking
         log.warn("Tier 2 checks failed for page", {
+          pageId: page.id,
+          url: page.url,
+          error: error instanceof Error ? error.message : String(error),
+        });
+      }
+    }
+  });
+}
+
+/**
+ * Run Tier 3 checks (API-based) after Lighthouse completes.
+ * Tier 3 includes: CrUX Core Web Vitals, entity/NLP analysis,
+ * backlink metrics, and engagement proxies (CTR, scroll depth, bounce rate).
+ * These checks gracefully skip when API data is unavailable.
+ */
+async function runTier3ChecksPhase(
+  step: WorkflowStep,
+  auditId: string,
+  workflowInstanceId: string,
+  allPages: StepPageResult[],
+  htmlByPageId: Map<string, string>,
+): Promise<void> {
+  return step.do("run-tier3-checks", async () => {
+    // Tier 3 checks use external APIs (CrUX, GSC, GA4)
+    // They gracefully skip when API credentials not configured
+    for (const page of allPages) {
+      const html = htmlByPageId.get(page.id);
+
+      // Skip pages without HTML
+      if (!html || page.statusCode !== 200) {
+        continue;
+      }
+
+      try {
+        // Run Tier 3 checks - API-based (CrUX, GSC, GA4)
+        const results = await runTier3Checks(html, page.url);
+
+        // Persist findings to database
+        if (results.length > 0) {
+          await FindingsRepository.insertFindings(auditId, page.id, results);
+        }
+      } catch (error) {
+        // Log but don't fail the audit - checks are non-blocking
+        log.warn("Tier 3 checks failed for page", {
+          pageId: page.id,
+          url: page.url,
+          error: error instanceof Error ? error.message : String(error),
+        });
+      }
+    }
+  });
+}
+
+/**
+ * Run Tier 4 checks (crawl-based) after Tier 3 completes.
+ * Tier 4 includes: site architecture (click depth, orphan pages, hub-spoke),
+ * and content differentiation (unique content ratio, scaled content detection).
+ * Requires site-wide context from crawl data.
+ */
+async function runTier4ChecksPhase(
+  step: WorkflowStep,
+  auditId: string,
+  workflowInstanceId: string,
+  allPages: StepPageResult[],
+  htmlByPageId: Map<string, string>,
+): Promise<void> {
+  return step.do("run-tier4-checks", async () => {
+    // Build site-wide context for Tier 4 checks
+    const siteContext = buildSiteContext(allPages);
+
+    // Tier 4 checks analyze site architecture and content uniqueness
+    for (const page of allPages) {
+      const html = htmlByPageId.get(page.id);
+
+      // Skip pages without HTML
+      if (!html || page.statusCode !== 200) {
+        continue;
+      }
+
+      try {
+        // Run Tier 4 checks - crawl-based with site context
+        const results = await runTier4Checks(html, page.url, siteContext);
+
+        // Persist findings to database
+        if (results.length > 0) {
+          await FindingsRepository.insertFindings(auditId, page.id, results);
+        }
+      } catch (error) {
+        // Log but don't fail the audit - checks are non-blocking
+        log.warn("Tier 4 checks failed for page", {
           pageId: page.id,
           url: page.url,
           error: error instanceof Error ? error.message : String(error),
