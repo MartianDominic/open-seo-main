@@ -29,6 +29,7 @@ import {
   type ScrapedContent,
 } from "@/server/lib/scraper/businessExtractor";
 import { OpportunityDiscoveryService } from "@/server/lib/opportunity/OpportunityDiscoveryService";
+import { calculatePriorityScore } from "@/server/lib/priority/calculatePriorityScore";
 
 const log = createLogger({ module: "prospect-analysis-processor" });
 
@@ -246,6 +247,26 @@ export default async function processProspectAnalysis(
       opportunityKeywords, // AI-discovered opportunities (Phase 29)
       costCents: totalCostCents,
     });
+
+    // Step 7: Calculate and store priority score (Phase 30.5-03)
+    const priorityScore = calculatePriorityScore({
+      domainMetrics,
+      keywordGaps,
+      opportunityKeywords,
+      analysisCompletedAt: new Date(),
+    });
+
+    if (priorityScore !== null) {
+      await db
+        .update(prospects)
+        .set({ priorityScore, updatedAt: new Date() })
+        .where(eq(prospects.id, prospectId));
+
+      log.info("Priority score calculated", {
+        prospectId,
+        priorityScore,
+      });
+    }
 
     log.info("Prospect analysis completed", {
       jobId: job.id,
