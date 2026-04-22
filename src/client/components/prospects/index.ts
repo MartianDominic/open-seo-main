@@ -36,3 +36,8 @@ export { StatusBadge } from "./StatusBadge";
 
 // Phase 30.5: CSV Import
 export { CsvImportDialog } from "./CsvImportDialog";
+
+// Phase 30.5-05: Bulk Actions UI
+export { ProspectsTable } from "./ProspectsTable";
+export { BulkActionBar } from "./BulkActionBar";
+export { PipelineStageChart } from "./PipelineStageChart";
