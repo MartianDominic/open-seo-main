@@ -27,7 +27,7 @@ See: .planning/PROJECT.md (updated 2026-04-17)
 ## Current Position
 
 Phase: 31 of 31 (Site Connection)
-Plan: 2 of 4 in current phase (31-02 complete)
+Plan: 2 of 4 in current phase (31-01, 31-02 complete)
 Status: Executing
 Last activity: 2026-04-22
 
@@ -85,6 +85,7 @@ Recent decisions affecting current work:
 - Pre-init: Delete and regenerate drizzle/ migrations (do not migrate SQLite journal to PG)
 - TanStack Table v8 row selection pattern with IndeterminateCheckbox for header
 - Platform detection weighted scoring: high >= 100, medium >= 50, low < 50
+- AES-256-GCM with IV || TAG || CIPHERTEXT packing for credential encryption
 
 ### Pending Todos
 
@@ -98,6 +99,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-04-22T14:00:18Z
-Stopped at: Completed 31-02 Platform Detection Service
+Last session: 2026-04-22T14:01:30Z
+Stopped at: Completed 31-01 Site Connections Schema
 Resume file: None
