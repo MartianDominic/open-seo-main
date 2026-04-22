@@ -4,6 +4,7 @@
  */
 import { registerCheck } from "../registry";
 import type { CheckContext, CheckResult } from "../types";
+import type { CheerioAPI } from "cheerio";
 
 function isExternalLink(href: string, pageUrl: string): boolean {
   try {
@@ -15,7 +16,7 @@ function isExternalLink(href: string, pageUrl: string): boolean {
   }
 }
 
-function getWordCount($: cheerio.CheerioAPI): number {
+function getWordCount($: CheerioAPI): number {
   const body = $("body").clone();
   body.find("script, style, nav, header, footer").remove();
   const text = body.text().replace(/\s+/g, " ").trim();

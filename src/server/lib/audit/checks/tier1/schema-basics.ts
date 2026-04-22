@@ -4,8 +4,9 @@
  */
 import { registerCheck } from "../registry";
 import type { CheckContext, CheckResult } from "../types";
+import type { CheerioAPI } from "cheerio";
 
-function parseJsonLd($: cheerio.CheerioAPI): unknown[] {
+function parseJsonLd($: CheerioAPI): unknown[] {
   const schemas: unknown[] = [];
   $('script[type="application/ld+json"]').each((_, el) => {
     try {

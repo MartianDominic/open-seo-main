@@ -4,13 +4,14 @@
  */
 import { registerCheck } from "../registry";
 import type { CheckContext, CheckResult } from "../types";
+import type { CheerioAPI } from "cheerio";
 
 function keywordRegex(keyword: string): RegExp {
   const escaped = keyword.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
   return new RegExp(`\\b${escaped}\\b`, "gi");
 }
 
-function getBodyText($: cheerio.CheerioAPI): string {
+function getBodyText($: CheerioAPI): string {
   // Remove script, style, nav, header, footer for body text
   const body = $("body").clone();
   body.find("script, style, nav, header, footer, aside").remove();
