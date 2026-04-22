@@ -26,9 +26,9 @@ See: .planning/PROJECT.md (updated 2026-04-17)
 
 ## Current Position
 
-Phase: 30 of 30 (Interactive Proposals)
-Plan: 8 of 8 in current phase (30-08 complete)
-Status: Phase complete — ready for verification
+Phase: 31 of 31 (Site Connection)
+Plan: 2 of 4 in current phase (31-02 complete)
+Status: Executing
 Last activity: 2026-04-22
 
 Progress: [██████░░░░] 56%
@@ -84,6 +84,7 @@ Recent decisions affecting current work:
 - Pre-init: Worker runs as a separate Docker service (Lighthouse is CPU-heavy; sandboxed processor prevents event-loop blocking)
 - Pre-init: Delete and regenerate drizzle/ migrations (do not migrate SQLite journal to PG)
 - TanStack Table v8 row selection pattern with IndeterminateCheckbox for header
+- Platform detection weighted scoring: high >= 100, medium >= 50, low < 50
 
 ### Pending Todos
 
@@ -97,6 +98,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-04-22T13:37:14.692Z
-Stopped at: Completed 30.5-05 Bulk Actions UI
+Last session: 2026-04-22T14:00:18Z
+Stopped at: Completed 31-02 Platform Detection Service
 Resume file: None
