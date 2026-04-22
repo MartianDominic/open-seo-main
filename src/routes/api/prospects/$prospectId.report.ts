@@ -65,7 +65,7 @@ export const Route = createFileRoute("/api/prospects/$prospectId/report" as any)
               UNAUTHENTICATED: 401,
               FORBIDDEN: 403,
               NOT_FOUND: 404,
-              BAD_REQUEST: 400,
+              VALIDATION_ERROR: 400,
             };
             const status = statusMap[err.code] ?? 400;
             return Response.json({ error: err.message }, { status });

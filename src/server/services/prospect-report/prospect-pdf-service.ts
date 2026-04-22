@@ -96,7 +96,7 @@ export const ProspectPdfService = {
 
       if (!latestAnalysis) {
         throw new AppError(
-          "BAD_REQUEST",
+          "VALIDATION_ERROR",
           `No completed analysis available for prospect: ${prospectId}`,
         );
       }
@@ -106,7 +106,7 @@ export const ProspectPdfService = {
     // Validate analysis is completed
     if (analysis.status !== "completed") {
       throw new AppError(
-        "BAD_REQUEST",
+        "VALIDATION_ERROR",
         `Analysis is not completed (status: ${analysis.status})`,
       );
     }
