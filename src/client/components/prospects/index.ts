@@ -15,6 +15,7 @@ export type { SortColumn, SortDirection, GapSummary } from "./KeywordGapTable";
 
 export { GapSummaryCard } from "./GapSummaryCard";
 export { KeywordGapsTab } from "./KeywordGapsTab";
+export { QuickWinsTab } from "./QuickWinsTab";
 
 // Phase 29: AI Opportunity Discovery
 export {

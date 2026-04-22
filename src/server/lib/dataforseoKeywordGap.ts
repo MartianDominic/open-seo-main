@@ -309,5 +309,77 @@ export function enrichGapsWithAchievability(
   }));
 }
 
+// ---------------------------------------------------------------------------
+// Keyword Classification (Phase 28-04)
+// ---------------------------------------------------------------------------
+
+/**
+ * Keyword classification categories for prioritization
+ */
+export type KeywordClassification = "quick_win" | "strategic" | "long_tail" | "standard";
+
+/**
+ * Extended KeywordGap type with classification
+ */
+export interface ClassifiedKeywordGap extends KeywordGapWithAchievability {
+  classification: KeywordClassification;
+}
+
+/**
+ * Classify a keyword gap based on difficulty, search volume, and achievability.
+ *
+ * Categories:
+ * - Quick Win: difficulty < 30 AND searchVolume > 100 AND achievability > 70
+ * - Strategic: difficulty 30-60 AND searchVolume > 500
+ * - Long Tail: searchVolume < 100
+ * - Standard: everything else
+ *
+ * @param gap - Keyword gap with achievability score
+ * @returns Classification category
+ */
+export function classifyKeywordGap(gap: KeywordGapWithAchievability): KeywordClassification {
+  const { difficulty, searchVolume, achievability } = gap;
+
+  // Quick Win: easy to rank, decent volume, highly achievable
+  if (difficulty < 30 && searchVolume > 100 && achievability > 70) {
+    return "quick_win";
+  }
+
+  // Strategic: medium difficulty, high volume
+  if (difficulty >= 30 && difficulty <= 60 && searchVolume > 500) {
+    return "strategic";
+  }
+
+  // Long Tail: low volume keywords
+  if (searchVolume < 100) {
+    return "long_tail";
+  }
+
+  // Standard: everything else
+  return "standard";
+}
+
+/**
+ * Enrich keyword gaps with classification based on achievability.
+ *
+ * @param gaps - Array of keyword gaps with achievability
+ * @returns Keyword gaps with classification added
+ */
+export function classifyKeywordGaps(
+  gaps: KeywordGapWithAchievability[]
+): ClassifiedKeywordGap[] {
+  return gaps.map((gap) => ({
+    ...gap,
+    classification: classifyKeywordGap(gap),
+  }));
+}
+
+/**
+ * Filter gaps to only Quick Wins
+ */
+export function filterQuickWins(gaps: KeywordGapWithAchievability[]): KeywordGapWithAchievability[] {
+  return gaps.filter((gap) => classifyKeywordGap(gap) === "quick_win");
+}
+
 // Re-export types
 export type { DomainIntersectionItem };
