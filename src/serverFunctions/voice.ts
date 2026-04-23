@@ -323,6 +323,10 @@ const buildConstraintsSchema = z.object({
   targetUrl: z.string().optional(),
 });
 
+const generatePreviewSchema = z.object({
+  profileId: z.string().min(1, "Profile ID is required"),
+});
+
 /**
  * Score content against a voice profile.
  * Returns compliance score across 5 dimensions with violations.
@@ -368,3 +372,108 @@ export const buildVoiceConstraintsFn = createServerFn({ method: "POST" })
 
     return { constraints };
   });
+
+// ============================================================================
+// Voice Preview Server Functions (Phase 37-05)
+// ============================================================================
+
+/**
+ * Generate preview samples using the voice profile.
+ * Returns headline, paragraph, and CTA samples with compliance scoring.
+ *
+ * Security: T-37-12 - Rate limited via profile access verification
+ */
+export const generateVoicePreviewFn = createServerFn({ method: "POST" })
+  .middleware(requireAuthenticatedContext)
+  .inputValidator((data: unknown) => generatePreviewSchema.parse(data))
+  .handler(async ({ data, context }) => {
+    await verifyProfileAccess(data.profileId, context.organizationId);
+
+    const profile = await voiceProfileService.getById(data.profileId);
+    if (!profile) {
+      throw new AppError("NOT_FOUND", "Voice profile not found");
+    }
+
+    // Build constraints for sample generation
+    const constraints = buildVoiceConstraints({ profile });
+
+    // Generate samples based on profile settings
+    // In production, this would call an AI service
+    // For now, generate mock samples based on profile attributes
+    const samples = generateMockSamples(profile);
+
+    // Score the generated content
+    const allContent = `${samples.headline}\n\n${samples.paragraph}\n\n${samples.cta}`;
+    const compliance = await voiceComplianceService.scoreContent(
+      allContent,
+      profile
+    );
+
+    return { samples, compliance };
+  });
+
+/**
+ * Generate mock samples based on profile settings.
+ * In production, this would use an AI model with voice constraints.
+ */
+function generateMockSamples(profile: {
+  tonePrimary: string | null;
+  toneSecondary: string | null;
+  archetype: string | null;
+  formalityLevel: number | null;
+  contractionUsage: string | null;
+}) {
+  const formal = (profile.formalityLevel ?? 5) >= 7;
+  const useContractions = profile.contractionUsage === "frequently";
+
+  // Generate based on archetype
+  const archetypeContent: Record<
+    string,
+    { headline: string; paragraph: string; cta: string }
+  > = {
+    professional: {
+      headline: "Excellence in Every Detail",
+      paragraph: formal
+        ? "Our dedicated team of professionals delivers comprehensive solutions tailored to your specific requirements. We maintain the highest standards of quality and service excellence in everything we do."
+        : useContractions
+          ? "We're committed to delivering the best results for your business. Our team's expertise ensures you'll get solutions that work."
+          : "We are committed to delivering the best results for your business. Our team expertise ensures you will get solutions that work.",
+      cta: formal ? "Schedule a Consultation" : "Get Started Today",
+    },
+    friendly: {
+      headline: useContractions
+        ? "We're Here to Help You Succeed"
+        : "We Are Here to Help You Succeed",
+      paragraph: useContractions
+        ? "Looking for a partner who truly understands your needs? We've got you covered! Our friendly team is ready to help you achieve your goals with personalized support every step of the way."
+        : "Looking for a partner who truly understands your needs? We have got you covered! Our friendly team is ready to help you achieve your goals with personalized support every step of the way.",
+      cta: useContractions ? "Let's Talk!" : "Let Us Talk!",
+    },
+    technical: {
+      headline: "Advanced Solutions for Complex Challenges",
+      paragraph: formal
+        ? "Our platform leverages cutting-edge technology to deliver scalable, enterprise-grade solutions. With robust architecture and comprehensive APIs, we provide the technical foundation for your success."
+        : "Built with modern tech stack, our platform scales with your needs. Powerful APIs and flexible architecture mean you can customize everything.",
+      cta: "View Technical Documentation",
+    },
+    authoritative: {
+      headline: "Industry-Leading Expertise You Can Trust",
+      paragraph: formal
+        ? "With decades of combined experience, our experts provide authoritative guidance backed by rigorous research and proven methodologies. Trust the professionals who set the standard in the industry."
+        : "Our experts bring years of experience and proven methods. We set the standard that others follow.",
+      cta: "Speak With an Expert",
+    },
+    casual: {
+      headline: useContractions ? "Hey, Let's Make This Easy" : "Hey, Let Us Make This Easy",
+      paragraph: useContractions
+        ? "No complicated stuff here - just straightforward solutions that actually work. We're all about keeping things simple and getting you results without the headache."
+        : "No complicated stuff here - just straightforward solutions that actually work. We are all about keeping things simple and getting you results without the headache.",
+      cta: "Jump In",
+    },
+  };
+
+  const archetype = profile.archetype ?? "professional";
+  return (
+    archetypeContent[archetype] ?? archetypeContent.professional
+  );
+}
