@@ -22,6 +22,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [ ] **Phase 30: Interactive Proposals** - Scrollytelling proposals, Lithuanian AI generation, Smart-ID signing, Stripe payments
 - [ ] **Phase 30.5: Prospect Pipeline Automation** - CSV bulk import, pipeline stage tracking, automation rules, bulk actions UI
 - [ ] **Phase 31: Site Connection & Platform Detection** - Unified site connection model with platform auto-detection for WordPress, Shopify, Wix, Squarespace, Webflow, custom sites
+- [ ] **Phase 37: Brand Voice Management** - Voice profiles with 12 dimensions, AI voice learning, industry templates, protection rules, compliance scoring
 
 ## Phase Details
 
@@ -157,6 +158,26 @@ Plans:
 - [ ] 31-04-PLAN.md — Connection wizard UI + write verification
 **UI hint**: yes
 
+### Phase 37: Brand Voice Management
+**Goal**: Full brand voice system with three modes (preservation, application, best_practices), voice learning from existing content via AI analysis, and agency-grade UI
+**Depends on**: Phase 31 (client model), Phase 27 (scraper)
+**Success Criteria** (what must be TRUE):
+  1. voice_profiles, voice_analysis, content_protection_rules tables exist with all 12 voice dimensions
+  2. VoiceAnalyzer extracts voice dimensions from 5-10 client pages using Claude AI
+  3. 8 industry templates provide sensible voice defaults (Healthcare, Legal, E-commerce, B2B SaaS, Financial, Real Estate, Home Services, Technology)
+  4. Protection rules support page/section/pattern types with expiration dates and CSV bulk import
+  5. VoiceComplianceService scores generated content across 5 dimensions with violation line numbers
+  6. VoiceConstraintBuilder injects voice profile into AI-Writer prompts by mode
+  7. Voice settings UI at /clients/[clientId]/voice with tabbed interface, preview suite, and guided wizard
+**Plans**: 5 plans
+Plans:
+- [ ] 37-01-PLAN.md — Database schema (voice_profiles, voice_analysis, content_protection_rules)
+- [ ] 37-02-PLAN.md — Voice analysis service with BullMQ background jobs
+- [ ] 37-03-PLAN.md — Voice profile CRUD, industry templates, protection rules service
+- [ ] 37-04-PLAN.md — Voice compliance scoring and AI-Writer integration
+- [ ] 37-05-PLAN.md — Agency-grade settings UI with tabbed interface and preview suite
+**UI hint**: yes
+
 ## Progress
 
 **Execution Order:**
@@ -174,3 +195,4 @@ Phases execute in numeric order: 1 → 2 → 3 → 4
 | 30. Interactive Proposals | 0/8 | Not started | - |
 | 30.5. Prospect Pipeline Automation | 0/3 | Not started | - |
 | 31. Site Connection & Platform Detection | 0/4 | Not started | - |
+| 37. Brand Voice Management | 0/5 | Not started | - |
