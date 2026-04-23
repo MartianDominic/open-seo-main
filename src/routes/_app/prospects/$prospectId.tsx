@@ -18,7 +18,7 @@ import {
   TabsTrigger,
   TabsContent,
 } from "@/client/components/ui/tabs";
-import { KeywordGapsTab, StatusBadge } from "@/client/components/prospects";
+import { KeywordGapsTab, QuickWinsTab, StatusBadge } from "@/client/components/prospects";
 
 export const Route = createFileRoute("/_app/prospects/$prospectId")({
   component: ProspectDetailPage,
@@ -54,6 +54,7 @@ function ProspectDetailPage() {
   // Get the most recent analysis with keyword gaps
   const latestAnalysis = prospect.analyses?.[0];
   const keywordGaps = latestAnalysis?.keywordGaps ?? null;
+  const domainAuthority = latestAnalysis?.domainMetrics?.domainRank ?? 30; // Default DA 30
 
   return (
     <div className="p-6 max-w-6xl mx-auto">
@@ -120,6 +121,7 @@ function ProspectDetailPage() {
               </Badge>
             )}
           </TabsTrigger>
+          <TabsTrigger value="quick-wins">Quick Wins</TabsTrigger>
           <TabsTrigger value="competitors">Competitors</TabsTrigger>
         </TabsList>
 
@@ -129,6 +131,14 @@ function ProspectDetailPage() {
 
         <TabsContent value="keyword-gaps" className="mt-6">
           <KeywordGapsTab gaps={keywordGaps} domain={prospect.domain} />
+        </TabsContent>
+
+        <TabsContent value="quick-wins" className="mt-6">
+          <QuickWinsTab
+            gaps={keywordGaps}
+            domainAuthority={domainAuthority}
+            domain={prospect.domain}
+          />
         </TabsContent>
 
         <TabsContent value="competitors" className="mt-6">

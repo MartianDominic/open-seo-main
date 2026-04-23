@@ -3,8 +3,13 @@ import type { RobotsResult } from "@/server/lib/audit/discovery";
 import type { StepPageResult } from "@/server/lib/audit/types";
 import { isSameOrigin, normalizeUrl } from "@/server/lib/audit/url-utils";
 import { AuditRepository } from "@/server/features/audit/repositories/AuditRepository";
+import { FindingsRepository } from "@/server/features/audit/repositories/FindingsRepository";
 import { AuditProgressKV } from "@/server/lib/audit/progress-kv";
-import { crawlPage } from "@/server/workflows/site-audit-workflow-helpers";
+import { crawlPage, type CrawlPageResultWithHtml } from "@/server/workflows/site-audit-workflow-helpers";
+import { runTier1Checks } from "@/server/lib/audit/checks/runner";
+import { createLogger } from "@/server/lib/logger";
+
+const log = createLogger({ module: "crawl-phase" });
 
 const CRAWL_CONCURRENCY = 25;
 
@@ -36,7 +41,7 @@ type CrawlPhaseParams = {
 export async function runCrawlPhase(
   step: WorkflowStep,
   params: CrawlPhaseParams,
-): Promise<StepPageResult[]> {
+): Promise<CrawlPhaseResult> {
   const {
     auditId,
     workflowInstanceId,
@@ -50,6 +55,7 @@ export async function runCrawlPhase(
   const queue: string[] = [];
   const queued = new Set<string>();
   const allPages: StepPageResult[] = [];
+  const allHtmlByPageId = new Map<string, string>();
 
   seedCrawlQueue({
     startUrl,
@@ -73,7 +79,7 @@ export async function runCrawlPhase(
     if (urlsToCrawl.length === 0) continue;
 
     crawlBatchIndex += 1;
-    const crawledBatch = await runCrawlBatch(
+    const { pages: crawledBatch, htmlByPageId } = await runCrawlBatch(
       step,
       crawlBatchIndex,
       urlsToCrawl,
@@ -81,8 +87,16 @@ export async function runCrawlPhase(
     );
     allPages.push(...crawledBatch);
 
+    // Accumulate HTML for Tier 2 checks (run after crawl completes)
+    for (const [pageId, html] of htmlByPageId) {
+      allHtmlByPageId.set(pageId, html);
+    }
+
+    // Run Tier 1 checks on pages with HTML (instant, free - DOM/regex only)
+    await runTier1ChecksForBatch(step, crawlBatchIndex, auditId, crawledBatch, htmlByPageId);
+
     enqueueDiscoveredLinks({
-      crawledBatch,
+      crawledBatch: crawledBatch,
       queue,
       queued,
       visited,
@@ -102,7 +116,7 @@ export async function runCrawlPhase(
     });
   }
 
-  return allPages;
+  return { allPages, htmlByPageId: allHtmlByPageId };
 }
 
 function seedCrawlQueue({
@@ -164,22 +178,82 @@ function selectNextCrawlBatch(
   return urlsToCrawl;
 }
 
+interface CrawlBatchResult {
+  pages: StepPageResult[];
+  htmlByPageId: Map<string, string>;
+}
+
+/** Result of the crawl phase including HTML for Tier 2 checks */
+export interface CrawlPhaseResult {
+  allPages: StepPageResult[];
+  htmlByPageId: Map<string, string>;
+}
+
 async function runCrawlBatch(
   step: WorkflowStep,
   crawlBatchIndex: number,
   urlsToCrawl: string[],
   origin: string,
-): Promise<StepPageResult[]> {
+): Promise<CrawlBatchResult> {
   return step.do(`crawl-batch-${crawlBatchIndex}`, async () => {
     const settled = await Promise.allSettled(
       urlsToCrawl.map((url) => crawlPage(url, origin)),
     );
-    return settled.flatMap((result) => {
+    const pages: StepPageResult[] = [];
+    const htmlByPageId = new Map<string, string>();
+
+    for (const result of settled) {
       if (result.status === "fulfilled" && result.value) {
-        return [result.value];
+        const { page, html } = result.value;
+        pages.push(page);
+        if (html) {
+          htmlByPageId.set(page.id, html);
+        }
       }
-      return [];
-    });
+    }
+
+    return { pages, htmlByPageId };
+  });
+}
+
+/**
+ * Run Tier 1 checks (DOM/regex) on crawled pages and persist findings.
+ * Tier 1 checks are instant and free - no external API calls.
+ * Runs in <100ms per page per threat model T-32-03.
+ */
+async function runTier1ChecksForBatch(
+  step: WorkflowStep,
+  crawlBatchIndex: number,
+  auditId: string,
+  pages: StepPageResult[],
+  htmlByPageId: Map<string, string>,
+): Promise<void> {
+  return step.do(`tier1-checks-batch-${crawlBatchIndex}`, async () => {
+    for (const page of pages) {
+      const html = htmlByPageId.get(page.id);
+
+      // Skip pages without HTML (non-HTML content types, failed fetches)
+      if (!html || page.statusCode !== 200) {
+        continue;
+      }
+
+      try {
+        // Run Tier 1 checks - instant, DOM/regex only
+        const results = await runTier1Checks(html, page.url);
+
+        // Persist findings to database
+        if (results.length > 0) {
+          await FindingsRepository.insertFindings(auditId, page.id, results);
+        }
+      } catch (error) {
+        // Log but don't fail the crawl - checks are non-blocking
+        log.warn("Tier 1 checks failed for page", {
+          pageId: page.id,
+          url: page.url,
+          error: error instanceof Error ? error.message : String(error),
+        });
+      }
+    }
   });
 }
 

@@ -13,6 +13,7 @@ import {
   jsonb,
   index,
   uniqueIndex,
+  real,
 } from "drizzle-orm/pg-core";
 import { relations } from "drizzle-orm";
 import { organization } from "./user-schema";
@@ -26,6 +27,19 @@ export const PROSPECT_STATUS = [
   "archived",
 ] as const;
 export type ProspectStatus = (typeof PROSPECT_STATUS)[number];
+
+// Pipeline stages for sales funnel tracking (Phase 30.5)
+export const PIPELINE_STAGES = [
+  "new", // Just added, no analysis
+  "analyzing", // Analysis in progress
+  "scored", // Analysis complete, priority score assigned
+  "qualified", // High score (>70), worth pursuing
+  "contacted", // Outreach initiated
+  "negotiating", // In discussion
+  "converted", // Became a client
+  "archived", // Not pursuing
+] as const;
+export type PipelineStage = (typeof PIPELINE_STAGES)[number];
 
 // Analysis type enum values
 export const ANALYSIS_TYPE = [
@@ -123,6 +137,10 @@ export const OPPORTUNITY_KEYWORD_CATEGORIES = [
 export type OpportunityKeywordCategory =
   (typeof OPPORTUNITY_KEYWORD_CATEGORIES)[number];
 
+// Keyword classification type (Phase 29-04)
+export const KEYWORD_CLASSES = ["quick_win", "strategic", "long_tail"] as const;
+export type KeywordClass = (typeof KEYWORD_CLASSES)[number];
+
 export interface OpportunityKeyword {
   keyword: string;
   category: OpportunityKeywordCategory;
@@ -130,6 +148,8 @@ export interface OpportunityKeyword {
   cpc: number;
   difficulty: number;
   opportunityScore: number;
+  achievability?: number; // 0-100, higher = easier to rank
+  classification?: KeywordClass; // quick_win | strategic | long_tail
   source: "ai_generated";
 }
 
@@ -154,6 +174,8 @@ export const prospects = pgTable(
     source: text("source"),
     assignedTo: text("assigned_to"),
     convertedClientId: text("converted_client_id"),
+    priorityScore: real("priority_score"), // 0-100, auto-computed after analysis (Phase 30.5-03)
+    pipelineStage: text("pipeline_stage").notNull().default("new"), // Phase 30.5-04: Sales funnel tracking
     createdAt: timestamp("created_at", { withTimezone: true, mode: "date" })
       .notNull()
       .defaultNow(),
@@ -164,6 +186,8 @@ export const prospects = pgTable(
   (table) => [
     index("ix_prospects_workspace").on(table.workspaceId),
     index("ix_prospects_status").on(table.status),
+    index("ix_prospects_priority").on(table.priorityScore), // Phase 30.5-03: sorting by priority
+    index("ix_prospects_pipeline_stage").on(table.pipelineStage), // Phase 30.5-04: filtering by stage
     uniqueIndex("ix_prospects_workspace_domain").on(
       table.workspaceId,
       table.domain,

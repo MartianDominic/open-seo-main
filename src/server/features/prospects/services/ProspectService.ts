@@ -5,7 +5,7 @@
  * Provides CRUD operations for prospects with domain validation.
  * Prospects are potential clients stored by domain with SEO analysis data.
  */
-import { eq, and, desc, count } from "drizzle-orm";
+import { eq, and, desc, count, asc, isNull } from "drizzle-orm";
 import { db } from "@/db/index";
 import {
   prospects,
@@ -168,23 +168,30 @@ export const ProspectService = {
    */
   async findByWorkspace(
     workspaceId: string,
-    options: { page?: number; pageSize?: number; status?: string } = {},
+    options: { page?: number; pageSize?: number; status?: string; sortBy?: "priority" | "created" } = {},
   ): Promise<PaginatedProspects> {
     const page = Math.max(1, options.page ?? 1);
     const pageSize = Math.min(100, Math.max(1, options.pageSize ?? 20));
     const offset = (page - 1) * pageSize;
+    const sortBy = options.sortBy ?? "created";
 
     let whereClause = eq(prospects.workspaceId, workspaceId);
     if (options.status) {
       whereClause = and(whereClause, eq(prospects.status, options.status))!;
     }
 
+    // Sort by priority (descending, nulls last) or created date
+    const orderByClause =
+      sortBy === "priority"
+        ? [desc(prospects.priorityScore), desc(prospects.createdAt)]
+        : [desc(prospects.createdAt)];
+
     const [data, [{ total }]] = await Promise.all([
       db
         .select()
         .from(prospects)
         .where(whereClause)
-        .orderBy(desc(prospects.createdAt))
+        .orderBy(...orderByClause)
         .limit(pageSize)
         .offset(offset),
       db.select({ total: count() }).from(prospects).where(whereClause),

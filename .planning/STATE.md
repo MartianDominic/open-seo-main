@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: completed
-stopped_at: context exhaustion at 90% (2026-04-22)
-last_updated: "2026-04-22T10:27:58.596Z"
-last_activity: 2026-04-21 — Phase 30 complete and committed
+status: verifying
+stopped_at: Completed 37-05 Voice Settings UI (pending checkpoint)
+last_updated: "2026-04-23T16:10:26.894Z"
+last_activity: 2026-04-23
 progress:
-  total_phases: 8
-  completed_phases: 1
-  total_plans: 13
-  completed_plans: 6
-  percent: 46
+  total_phases: 11
+  completed_phases: 3
+  total_plans: 25
+  completed_plans: 17
+  percent: 68
 ---
 
 # Project State
@@ -26,12 +26,12 @@ See: .planning/PROJECT.md (updated 2026-04-17)
 
 ## Current Position
 
-Phase: 30 of 30 (Interactive Proposals)
-Plan: 8 of 8 in current phase (30-08 complete)
-Status: Complete
-Last activity: 2026-04-21 — Phase 30 complete and committed
+Phase: 31 of 31 (Site Connection)
+Plan: 4 of 4 in current phase (31-01, 31-02 complete)
+Status: Phase complete — ready for verification
+Last activity: 2026-04-23
 
-Progress: [██████████] 100%
+Progress: [███████░░░] 68%
 
 ## Phase 30 Summary
 
@@ -68,6 +68,9 @@ Tests: 170 passing (10 test files)
 - Trend: -
 
 *Updated after each plan completion*
+| Phase 30.5 P01 | 8 | 3 tasks | 7 files |
+| Phase 30.5 P05 | 8 | 5 tasks | 9 files |
+| Phase 32 P03 | 12 | 3 tasks | 14 files |
 
 ## Accumulated Context
 
@@ -81,6 +84,13 @@ Recent decisions affecting current work:
 - Pre-init: Redis eviction policy `noeviction` (BullMQ requirement overrides volatile-lru)
 - Pre-init: Worker runs as a separate Docker service (Lighthouse is CPU-heavy; sandboxed processor prevents event-loop blocking)
 - Pre-init: Delete and regenerate drizzle/ migrations (do not migrate SQLite journal to PG)
+- TanStack Table v8 row selection pattern with IndeterminateCheckbox for header
+- Platform detection weighted scoring: high >= 100, medium >= 50, low < 50
+- AES-256-GCM with IV || TAG || CIPHERTEXT packing for credential encryption
+- Adapter pattern for WordPress/Shopify with PlatformAdapter interface
+- ExtendedPageAnalysis type for optional Tier 2 fields
+- 5 compliance dimensions with configurable weights (tone 25%, vocab 20%, structure 15%, personality 25%, rules 15%)
+- Escape special characters in prompts for T-37-09 injection prevention
 
 ### Pending Todos
 
@@ -94,6 +104,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-04-22T10:27:58.594Z
-Stopped at: context exhaustion at 90% (2026-04-22)
+Last session: 2026-04-23T16:10:26.890Z
+Stopped at: Completed 37-05 Voice Settings UI (pending checkpoint)
 Resume file: None

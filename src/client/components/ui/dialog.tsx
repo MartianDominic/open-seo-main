@@ -7,6 +7,8 @@ import { cn } from "@/client/lib/utils";
 
 const Dialog = DialogPrimitive.Root;
 
+const DialogTrigger = DialogPrimitive.Trigger;
+
 const DialogPortal = DialogPrimitive.Portal;
 
 const DialogOverlay = React.forwardRef<
@@ -95,4 +97,4 @@ const DialogFooter = ({
 );
 DialogFooter.displayName = "DialogFooter";
 
-export { Dialog, DialogPortal, DialogOverlay, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter };
+export { Dialog, DialogTrigger, DialogPortal, DialogOverlay, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter };

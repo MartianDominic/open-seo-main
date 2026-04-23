@@ -11,6 +11,7 @@ import { startRankingWorker, stopRankingWorker } from "@/server/workers/ranking-
 import { startAlertWorker, stopAlertWorker } from "@/server/workers/alert-worker";
 import { startDashboardMetricsWorker, stopDashboardMetricsWorker } from "@/server/workers/dashboard-metrics-worker";
 import { startProspectAnalysisWorker, stopProspectAnalysisWorker } from "@/server/workers/prospect-analysis-worker";
+import { startVoiceAnalysisWorker, stopVoiceAnalysisWorker } from "@/server/workers/voice-analysis-worker";
 import { closeRedis } from "@/server/lib/redis";
 import { pool } from "@/db";
 import { createLogger } from "@/server/lib/logger";
@@ -40,6 +41,9 @@ log.info("Dashboard metrics worker started");
 startProspectAnalysisWorker();
 log.info("Prospect analysis worker started");
 
+startVoiceAnalysisWorker();
+log.info("Voice analysis worker started");
+
 let shuttingDown = false;
 async function shutdown(signal: string): Promise<void> {
   if (shuttingDown) return;
@@ -52,6 +56,7 @@ async function shutdown(signal: string): Promise<void> {
   try { await stopAlertWorker(); } catch (err) { log.error("stopAlertWorker failed", err instanceof Error ? err : new Error(String(err))); }
   try { await stopDashboardMetricsWorker(); } catch (err) { log.error("stopDashboardMetricsWorker failed", err instanceof Error ? err : new Error(String(err))); }
   try { await stopProspectAnalysisWorker(); } catch (err) { log.error("stopProspectAnalysisWorker failed", err instanceof Error ? err : new Error(String(err))); }
+  try { await stopVoiceAnalysisWorker(); } catch (err) { log.error("stopVoiceAnalysisWorker failed", err instanceof Error ? err : new Error(String(err))); }
   try { await closeRedis(); } catch (err) { log.error("closeRedis failed", err instanceof Error ? err : new Error(String(err))); }
   try { await pool.end(); } catch (err) { log.error("pool.end failed", err instanceof Error ? err : new Error(String(err))); }
   log.info("Shutdown complete");

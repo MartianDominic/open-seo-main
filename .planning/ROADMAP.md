@@ -20,6 +20,9 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 28: Keyword Gap Analysis** - Identify keywords competitors rank for that prospect doesn't
 - [x] **Phase 29: AI Opportunity Discovery** - Generate keyword opportunities from scraped content for zero-ranking sites
 - [ ] **Phase 30: Interactive Proposals** - Scrollytelling proposals, Lithuanian AI generation, Smart-ID signing, Stripe payments
+- [ ] **Phase 30.5: Prospect Pipeline Automation** - CSV bulk import, pipeline stage tracking, automation rules, bulk actions UI
+- [ ] **Phase 31: Site Connection & Platform Detection** - Unified site connection model with platform auto-detection for WordPress, Shopify, Wix, Squarespace, Webflow, custom sites
+- [x] **Phase 37: Brand Voice Management** - Voice profiles with 12 dimensions, AI voice learning, industry templates, protection rules, compliance scoring
 
 ## Phase Details
 
@@ -118,6 +121,63 @@ Decimal phases appear between their surrounding integers in numeric order.
 **Plans**: 30-01, 30-02, 30-03, 30-04, 30-05, 30-06, 30-07, 30-08
 **UI hint**: yes
 
+### Phase 30.5: Prospect Pipeline Automation
+**Goal**: Enable agencies managing 500+ prospects to automate their sales pipeline with CSV bulk import, pipeline stage tracking, automation rules, and bulk UI actions
+**Depends on**: Phase 30
+**Requirements**: 30.5-01-a, 30.5-01-b, 30.5-01-c, 30.5-04-a, 30.5-04-b, 30.5-05-a, 30.5-05-b, 30.5-05-c
+**Success Criteria** (what must be TRUE):
+  1. CSV import creates prospects with validation and error reporting
+  2. Prospects have pipeline_stage column with 8 stages (new -> converted)
+  3. Analysis completion auto-transitions prospects through pipeline stages
+  4. High-scoring prospects (>=70) auto-qualify
+  5. Bulk actions UI supports analyze, archive, and CSV export
+  6. Pipeline distribution chart visualizes prospects by stage
+**Plans**: 3 plans
+Plans:
+- [ ] 30.5-01-PLAN.md — CSV import with papaparse, validation, preview UI
+- [ ] 30.5-04-PLAN.md — Pipeline stages schema, automation rules engine
+- [ ] 30.5-05-PLAN.md — Bulk actions UI, pipeline chart (depends on 30.5-04)
+**UI hint**: yes
+
+### Phase 31: Site Connection & Platform Detection
+**Goal**: Unified site connection model with platform auto-detection. Connects to WordPress, Shopify, Wix, Squarespace, Webflow, and custom sites for content management.
+**Depends on**: Phase 30 (client model)
+**Requirements**: CONN-01, CONN-02, CONN-03, CONN-04, CONN-05, CONN-06
+**Success Criteria** (what must be TRUE):
+  1. site_connections table exists with encrypted credentials column (AES-256-GCM)
+  2. Platform detection correctly identifies WordPress, Shopify, Wix, Squarespace, Webflow
+  3. WordPress adapter connects via REST API with App Password auth
+  4. Shopify adapter connects via GraphQL with OAuth token
+  5. Connection wizard auto-detects platform and presents appropriate credential form
+  6. Write permission verified before connection marked active
+**Plans**: 4 plans
+Plans:
+- [ ] 31-01-PLAN.md — site_connections schema + encryption utilities
+- [ ] 31-02-PLAN.md — Platform detection service (multi-probe fingerprinting)
+- [ ] 31-03-PLAN.md — Platform adapters (WordPress REST, Shopify GraphQL)
+- [ ] 31-04-PLAN.md — Connection wizard UI + write verification
+**UI hint**: yes
+
+### Phase 37: Brand Voice Management
+**Goal**: Full brand voice system with three modes (preservation, application, best_practices), voice learning from existing content via AI analysis, and agency-grade UI
+**Depends on**: Phase 31 (client model), Phase 27 (scraper)
+**Success Criteria** (what must be TRUE):
+  1. voice_profiles, voice_analysis, content_protection_rules tables exist with all 12 voice dimensions
+  2. VoiceAnalyzer extracts voice dimensions from 5-10 client pages using Claude AI
+  3. 8 industry templates provide sensible voice defaults (Healthcare, Legal, E-commerce, B2B SaaS, Financial, Real Estate, Home Services, Technology)
+  4. Protection rules support page/section/pattern types with expiration dates and CSV bulk import
+  5. VoiceComplianceService scores generated content across 5 dimensions with violation line numbers
+  6. VoiceConstraintBuilder injects voice profile into AI-Writer prompts by mode
+  7. Voice settings UI at /clients/[clientId]/voice with tabbed interface, preview suite, and guided wizard
+**Plans**: 5 plans
+Plans:
+- [ ] 37-01-PLAN.md — Database schema (voice_profiles, voice_analysis, content_protection_rules)
+- [ ] 37-02-PLAN.md — Voice analysis service with BullMQ background jobs
+- [ ] 37-03-PLAN.md — Voice profile CRUD, industry templates, protection rules service
+- [ ] 37-04-PLAN.md — Voice compliance scoring and AI-Writer integration
+- [ ] 37-05-PLAN.md — Agency-grade settings UI with tabbed interface and preview suite
+**UI hint**: yes
+
 ## Progress
 
 **Execution Order:**
@@ -133,3 +193,6 @@ Phases execute in numeric order: 1 → 2 → 3 → 4
 | 28. Keyword Gap Analysis | 0/1 | Not started | - |
 | 29. AI Opportunity Discovery | 0/1 | Not started | - |
 | 30. Interactive Proposals | 0/8 | Not started | - |
+| 30.5. Prospect Pipeline Automation | 0/3 | Not started | - |
+| 31. Site Connection & Platform Detection | 0/4 | Not started | - |
+| 37. Brand Voice Management | 5/5 | Complete | 2026-04-23 |

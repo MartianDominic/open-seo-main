@@ -163,3 +163,35 @@ export const portfolioAggregates = pgTable(
 
 export type PortfolioAggregatesSelect = typeof portfolioAggregates.$inferSelect;
 export type PortfolioAggregatesInsert = typeof portfolioAggregates.$inferInsert;
+
+/**
+ * Granular SEO check findings per page.
+ * Phase 32: 107 SEO Checks Implementation
+ */
+export const auditFindings = pgTable(
+  "audit_findings",
+  {
+    id: text("id").primaryKey(),
+    auditId: text("audit_id").notNull(),
+    pageId: text("page_id").notNull(),
+    checkId: text("check_id").notNull(), // e.g., "T1-01"
+    tier: integer("tier").notNull(), // 1-4
+    category: text("category").notNull(),
+    passed: boolean("passed").notNull(),
+    severity: text("severity").notNull(), // critical/high/medium/low/info
+    message: text("message").notNull(),
+    details: jsonb("details").$type<Record<string, unknown>>(),
+    autoEditable: boolean("auto_editable").notNull().default(false),
+    editRecipe: text("edit_recipe"),
+    createdAt: timestamp("created_at", { withTimezone: true, mode: "date" }).notNull().defaultNow(),
+  },
+  (table) => [
+    index("ix_findings_audit").on(table.auditId),
+    index("ix_findings_page").on(table.pageId),
+    index("ix_findings_check").on(table.checkId),
+    index("ix_findings_severity_passed").on(table.severity, table.passed),
+  ]
+);
+
+export type AuditFindingSelect = typeof auditFindings.$inferSelect;
+export type AuditFindingInsert = typeof auditFindings.$inferInsert;
