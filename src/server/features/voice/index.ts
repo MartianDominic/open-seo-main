@@ -12,5 +12,5 @@ export type {
   VoiceAnalysisDLQJobData,
 } from "./types";
 
-// Services (to be added)
-// export { VoiceAnalyzer, analyzePageVoice, aggregateVoiceResults } from "./services/VoiceAnalyzer";
+// Services
+export { analyzePageVoice, aggregateVoiceResults, buildVoicePrompt } from "./services/VoiceAnalyzer";
