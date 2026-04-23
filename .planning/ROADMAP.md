@@ -22,7 +22,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [ ] **Phase 30: Interactive Proposals** - Scrollytelling proposals, Lithuanian AI generation, Smart-ID signing, Stripe payments
 - [ ] **Phase 30.5: Prospect Pipeline Automation** - CSV bulk import, pipeline stage tracking, automation rules, bulk actions UI
 - [ ] **Phase 31: Site Connection & Platform Detection** - Unified site connection model with platform auto-detection for WordPress, Shopify, Wix, Squarespace, Webflow, custom sites
-- [ ] **Phase 37: Brand Voice Management** - Voice profiles with 12 dimensions, AI voice learning, industry templates, protection rules, compliance scoring
+- [x] **Phase 37: Brand Voice Management** - Voice profiles with 12 dimensions, AI voice learning, industry templates, protection rules, compliance scoring
 
 ## Phase Details
 
@@ -195,4 +195,4 @@ Phases execute in numeric order: 1 → 2 → 3 → 4
 | 30. Interactive Proposals | 0/8 | Not started | - |
 | 30.5. Prospect Pipeline Automation | 0/3 | Not started | - |
 | 31. Site Connection & Platform Detection | 0/4 | Not started | - |
-| 37. Brand Voice Management | 0/5 | Not started | - |
+| 37. Brand Voice Management | 5/5 | Complete | 2026-04-23 |
