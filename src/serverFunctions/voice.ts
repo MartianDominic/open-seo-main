@@ -17,6 +17,8 @@ import { clients } from "@/db/client-schema";
 import { voiceProfiles } from "@/db/voice-schema";
 import { voiceProfileService } from "@/server/features/voice/services/VoiceProfileService";
 import { protectionRulesService } from "@/server/features/voice/services/ProtectionRulesService";
+import { voiceComplianceService } from "@/server/features/voice/services/VoiceComplianceService";
+import { buildVoiceConstraints } from "@/server/features/voice/services/VoiceConstraintBuilder";
 import {
   INDUSTRY_TEMPLATES,
   TEMPLATE_IDS,
@@ -303,4 +305,66 @@ export const importProtectionRulesCsvFn = createServerFn({ method: "POST" })
       data.csvContent,
       context.userId
     );
+  });
+
+// ============================================================================
+// Voice Compliance Server Functions (Phase 37-04)
+// ============================================================================
+
+const scoreComplianceSchema = z.object({
+  content: z.string().min(1, "Content is required"),
+  profileId: z.string().min(1, "Profile ID is required"),
+});
+
+const buildConstraintsSchema = z.object({
+  profileId: z.string().min(1, "Profile ID is required"),
+  templateBlend: z.number().min(0).max(1).optional(),
+  templateId: z.string().optional(),
+  targetUrl: z.string().optional(),
+});
+
+/**
+ * Score content against a voice profile.
+ * Returns compliance score across 5 dimensions with violations.
+ *
+ * Security: T-37-10 - Verifies caller has access to profileId's client
+ */
+export const scoreComplianceFn = createServerFn({ method: "POST" })
+  .middleware(requireAuthenticatedContext)
+  .inputValidator((data: unknown) => scoreComplianceSchema.parse(data))
+  .handler(async ({ data, context }) => {
+    // T-37-10: Verify access before scoring
+    await verifyProfileAccess(data.profileId, context.organizationId);
+
+    const profile = await voiceProfileService.getById(data.profileId);
+    if (!profile) {
+      throw new AppError("NOT_FOUND", "Voice profile not found");
+    }
+
+    return voiceComplianceService.scoreContent(data.content, profile);
+  });
+
+/**
+ * Build voice constraints for AI prompt injection.
+ * Returns formatted prompt section based on profile mode.
+ */
+export const buildVoiceConstraintsFn = createServerFn({ method: "POST" })
+  .middleware(requireAuthenticatedContext)
+  .inputValidator((data: unknown) => buildConstraintsSchema.parse(data))
+  .handler(async ({ data, context }) => {
+    await verifyProfileAccess(data.profileId, context.organizationId);
+
+    const profile = await voiceProfileService.getById(data.profileId);
+    if (!profile) {
+      throw new AppError("NOT_FOUND", "Voice profile not found");
+    }
+
+    const constraints = buildVoiceConstraints({
+      profile,
+      templateBlend: data.templateBlend,
+      templateId: data.templateId,
+      targetUrl: data.targetUrl,
+    });
+
+    return { constraints };
   });
