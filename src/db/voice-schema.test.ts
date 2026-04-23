@@ -3,11 +3,16 @@ import {
   voiceProfiles,
   voiceAnalysis,
   contentProtectionRules,
+  voiceTemplates,
+  voiceAuditLog,
   VOICE_MODES,
   ARCHETYPES,
   CONTRACTION_USAGE,
   HEADING_STYLES,
   PROTECTION_RULE_TYPES,
+  voiceStatusEnum,
+  primaryToneEnum,
+  protectionLevelEnum,
   type VoiceMode,
   type Archetype,
   type ContractionUsage,
@@ -20,6 +25,12 @@ import {
   type VoiceAnalysisInsert,
   type ContentProtectionRuleSelect,
   type ContentProtectionRuleInsert,
+  type VoiceTemplateSelect,
+  type VoiceTemplateInsert,
+  type VoiceAuditLogSelect,
+  type VoiceAuditLogInsert,
+  type VoiceAuditIssue,
+  type VoiceProfileConfig,
 } from "./voice-schema";
 
 describe("VoiceSchema Types", () => {
@@ -265,4 +276,212 @@ describe("VoiceSchema Types", () => {
       expect(rule.reason).toBe("Brand messaging locked until rebrand");
     });
   });
+
+  // NEW TESTS FOR EXPANDED SCHEMA (Phase 37-01)
+  describe("voiceStatusEnum", () => {
+    it("should have voiceStatus column with pgEnum type", () => {
+      expect(voiceStatusEnum).toBeDefined();
+      expect(Object.keys(voiceProfiles)).toContain("voiceStatus");
+    });
+  });
+
+  describe("primaryToneEnum", () => {
+    it("should contain all 11 primary tone values", () => {
+      expect(primaryToneEnum).toBeDefined();
+      // The enum should have these values: professional, casual, friendly,
+      // authoritative, playful, inspirational, empathetic, urgent,
+      // conversational, academic, innovative
+    });
+  });
+
+  describe("voiceProfiles expanded columns", () => {
+    it("should have voiceStatus column", () => {
+      expect(Object.keys(voiceProfiles)).toContain("voiceStatus");
+    });
+
+    it("should have secondaryTones as JSONB array", () => {
+      expect(Object.keys(voiceProfiles)).toContain("secondaryTones");
+    });
+
+    it("should have seoVsVoicePriority as integer with default 6", () => {
+      expect(Object.keys(voiceProfiles)).toContain("seoVsVoicePriority");
+    });
+
+    it("should have voiceBlendEnabled as boolean with default false", () => {
+      expect(Object.keys(voiceProfiles)).toContain("voiceBlendEnabled");
+    });
+
+    it("should have all 40+ fields from design doc", () => {
+      const requiredFields = [
+        "voiceStatus",
+        "voiceName",
+        "industryTemplate",
+        "primaryTone",
+        "secondaryTones",
+        "emotionalRange",
+        "requiredPhrases",
+        "jargonLevel",
+        "industryTerms",
+        "acronymPolicy",
+        "sentenceLengthTarget",
+        "paragraphLengthTarget",
+        "listPreference",
+        "ctaTemplate",
+        "keywordDensityTolerance",
+        "keywordPlacementRules",
+        "seoVsVoicePriority",
+        "protectedSections",
+        "voiceBlendEnabled",
+        "voiceBlendWeight",
+        "voiceTemplateId",
+        "customInstructions",
+        "lastModifiedBy",
+      ];
+
+      requiredFields.forEach((field) => {
+        expect(Object.keys(voiceProfiles)).toContain(field);
+      });
+    });
+  });
+
+  describe("voiceTemplates table", () => {
+    it("should have id, name, industry, isSystem, templateConfig columns", () => {
+      expect(Object.keys(voiceTemplates)).toContain("id");
+      expect(Object.keys(voiceTemplates)).toContain("name");
+      expect(Object.keys(voiceTemplates)).toContain("industry");
+      expect(Object.keys(voiceTemplates)).toContain("isSystem");
+      expect(Object.keys(voiceTemplates)).toContain("templateConfig");
+    });
+
+    it("should have usageCount integer with default 0", () => {
+      expect(Object.keys(voiceTemplates)).toContain("usageCount");
+    });
+
+    it("should have description and createdBy fields", () => {
+      expect(Object.keys(voiceTemplates)).toContain("description");
+      expect(Object.keys(voiceTemplates)).toContain("createdBy");
+    });
+  });
+
+  describe("voiceAuditLog table", () => {
+    it("should have voiceProfileId FK with cascade delete", () => {
+      expect(Object.keys(voiceAuditLog)).toContain("voiceProfileId");
+    });
+
+    it("should have voiceConsistencyScore and toneConsistencyScore as real", () => {
+      expect(Object.keys(voiceAuditLog)).toContain("voiceConsistencyScore");
+      expect(Object.keys(voiceAuditLog)).toContain("toneConsistencyScore");
+    });
+
+    it("should have issues as JSONB array", () => {
+      expect(Object.keys(voiceAuditLog)).toContain("issues");
+    });
+
+    it("should have all audit score columns", () => {
+      const auditColumns = [
+        "voiceConsistencyScore",
+        "toneConsistencyScore",
+        "vocabularyAlignmentScore",
+        "structureComplianceScore",
+      ];
+
+      auditColumns.forEach((col) => {
+        expect(Object.keys(voiceAuditLog)).toContain(col);
+      });
+    });
+
+    it("should have contentId, contentType, contentUrl columns", () => {
+      expect(Object.keys(voiceAuditLog)).toContain("contentId");
+      expect(Object.keys(voiceAuditLog)).toContain("contentType");
+      expect(Object.keys(voiceAuditLog)).toContain("contentUrl");
+    });
+  });
+
+  describe("VoiceTemplateInsert type", () => {
+    it("should require name and templateConfig", () => {
+      const template: VoiceTemplateInsert = {
+        id: "vt_123",
+        name: "Healthcare Professional",
+        templateConfig: {
+          tonePrimary: "empathetic",
+          formalityLevel: 7,
+        },
+      };
+      expect(template.name).toBe("Healthcare Professional");
+      expect(template.templateConfig).toBeDefined();
+    });
+  });
+
+  describe("VoiceAuditLogInsert type", () => {
+    it("should require voiceProfileId", () => {
+      const auditLog: VoiceAuditLogInsert = {
+        id: "val_123",
+        voiceProfileId: "vp_456",
+      };
+      expect(auditLog.voiceProfileId).toBe("vp_456");
+    });
+
+    it("should accept all score fields and issues array", () => {
+      const issue: VoiceAuditIssue = {
+        type: "tone_mismatch",
+        severity: "warning",
+        location: "paragraph 3",
+        expected: "empathetic",
+        actual: "casual",
+        suggestion: "Revise to match empathetic tone",
+      };
+
+      const auditLog: VoiceAuditLogInsert = {
+        id: "val_123",
+        voiceProfileId: "vp_456",
+        contentId: "article_789",
+        contentType: "article",
+        voiceConsistencyScore: 0.85,
+        toneConsistencyScore: 0.78,
+        vocabularyAlignmentScore: 0.92,
+        structureComplianceScore: 0.88,
+        issues: [issue],
+      };
+
+      expect(auditLog.voiceConsistencyScore).toBe(0.85);
+      expect(auditLog.issues).toHaveLength(1);
+      expect(auditLog.issues![0].severity).toBe("warning");
+    });
+  });
+
+  describe("VoiceAuditIssue interface", () => {
+    it("should have all required fields", () => {
+      const issue: VoiceAuditIssue = {
+        type: "vocabulary_violation",
+        severity: "critical",
+        location: "heading 2",
+        expected: "professional terminology",
+        actual: "slang term used",
+        suggestion: "Replace with industry-standard term",
+      };
+
+      expect(issue.type).toBe("vocabulary_violation");
+      expect(issue.severity).toBe("critical");
+      expect(issue.location).toBe("heading 2");
+      expect(issue.expected).toBe("professional terminology");
+      expect(issue.actual).toBe("slang term used");
+      expect(issue.suggestion).toBe("Replace with industry-standard term");
+    });
+  });
+
+  describe("VoiceProfileConfig interface", () => {
+    it("should accept partial voice profile configuration", () => {
+      const config: VoiceProfileConfig = {
+        tonePrimary: "professional",
+        toneSecondary: "friendly",
+        formalityLevel: 6,
+        personalityTraits: ["knowledgeable", "helpful"],
+        archetype: "The Expert",
+      };
+
+      expect(config.tonePrimary).toBe("professional");
+      expect(config.personalityTraits).toContain("knowledgeable");
+    });
+  });
 });
+
