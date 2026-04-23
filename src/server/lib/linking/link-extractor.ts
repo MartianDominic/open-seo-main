@@ -159,7 +159,8 @@ function normalizeUrl(url: URL): string {
  * Detect link type based on content and position.
  */
 function detectLinkType(
-  $link: cheerio.Cheerio<cheerio.Element>
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  $link: cheerio.Cheerio<any>
 ): LinkType {
   // Check if link contains an image
   if ($link.find("img").length > 0) {

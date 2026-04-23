@@ -62,3 +62,143 @@ export interface ExtractLinksResult {
   /** Count of invalid links skipped (javascript:, mailto:, etc.) */
   invalidLinksSkipped: number;
 }
+
+// ============================================================
+// Phase 35-03: Target Selection + Anchor Selection Types
+// ============================================================
+
+import type { AnchorType, SuggestionStatus } from "@/db/link-schema";
+
+/**
+ * Page candidate for link target ranking.
+ */
+export interface PageCandidate {
+  pageId: string;
+  pageUrl: string;
+  pageTitle: string | null;
+  targetKeyword: string | null;
+  /** Current inbound link count */
+  inboundCount: number;
+  /** Ideal inbound link count (based on site average) */
+  idealInboundCount: number;
+  /** Click depth from homepage */
+  clickDepth: number | null;
+  /** Whether this page is an orphan (0 inbound links) */
+  isOrphan: boolean;
+  /** Keywords extracted from page content */
+  contentKeywords: string[];
+}
+
+/**
+ * Source page data for anchor selection.
+ */
+export interface SourcePageData {
+  pageId: string;
+  pageUrl: string;
+  /** Plain text content of the page body */
+  bodyText: string;
+  /** Brand name for branded anchor detection */
+  brandName?: string;
+}
+
+/**
+ * Scored link target candidate.
+ */
+export interface ScoredCandidate {
+  pageId: string;
+  pageUrl: string;
+  pageTitle: string | null;
+  targetKeyword: string | null;
+  /** Total score (0-100) */
+  score: number;
+  /** Link deficit score (25% weight) */
+  linkDeficitScore: number;
+  /** Exact-match need score (20% weight) */
+  exactMatchScore: number;
+  /** Orphan bonus score (30% weight) */
+  orphanScore: number;
+  /** Depth reduction score (15% weight) */
+  depthScore: number;
+  /** Relevance score based on keyword overlap (20% weight) */
+  relevanceScore: number;
+  /** Human-readable reasons for the suggestion */
+  reasons: string[];
+}
+
+/**
+ * Parameters for ranking link targets.
+ */
+export interface RankLinkTargetsParams {
+  /** Source page from which to link */
+  sourcePage: SourcePageData;
+  /** Candidate pages to rank */
+  candidates: PageCandidate[];
+  /** Maximum number of results to return */
+  maxResults?: number;
+  /** Site average inbound links per page */
+  siteAverageInbound?: number;
+  /** Maximum click depth threshold */
+  maxClickDepth?: number;
+}
+
+/**
+ * Result of anchor text selection.
+ */
+export interface AnchorSelection {
+  /** Selected anchor text */
+  anchorText: string;
+  /** Anchor type: exact, branded, or misc */
+  anchorType: AnchorType;
+  /** Confidence score (0.0-1.0) */
+  confidence: number;
+  /** If wrapping existing text, this is the text to wrap */
+  existingTextMatch: string | null;
+  /** If inserting, where to insert (paragraph context) */
+  insertionContext: string | null;
+}
+
+/**
+ * Parameters for selecting anchor text.
+ */
+export interface SelectAnchorParams {
+  /** Source page content */
+  sourcePage: SourcePageData;
+  /** Target page for the link */
+  targetKeyword: string | null;
+  targetTitle: string | null;
+  /** Distribution tracking for anchor type balance */
+  anchorDistribution: AnchorDistribution;
+}
+
+/**
+ * Tracks current anchor type distribution for a target page.
+ * Goal: ~50% exact, ~25% branded, ~25% misc
+ */
+export interface AnchorDistribution {
+  exact: number;
+  branded: number;
+  misc: number;
+}
+
+/**
+ * Link suggestion ready for database insertion.
+ */
+export interface LinkSuggestion {
+  sourceUrl: string;
+  sourcePageId: string | null;
+  targetUrl: string;
+  targetPageId: string | null;
+  anchorText: string;
+  anchorType: AnchorType;
+  anchorConfidence: number;
+  score: number;
+  linkDeficitScore: number;
+  exactMatchScore: number;
+  orphanScore: number;
+  depthScore: number;
+  relevanceScore: number;
+  reasons: string[];
+  existingTextMatch: string | null;
+  insertionContext: string | null;
+  status: SuggestionStatus;
+}
