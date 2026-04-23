@@ -19,3 +19,4 @@ export * from "./pipeline-rules-schema";
 export * from "./connection-schema";
 export * from "./change-schema";
 export * from "./mapping-schema";
+export * from "./link-schema";
