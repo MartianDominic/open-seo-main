@@ -1,3 +1,7 @@
+/**
+ * Core pipeline types.
+ */
+
 export interface PhaseNode {
   number: number; // e.g., 38
   name: string; // e.g., "Autonomous Pipeline Orchestration"
