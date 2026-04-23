@@ -21,3 +21,4 @@ export * from "./change-schema";
 export * from "./mapping-schema";
 export * from "./link-schema";
 export * from "./brief-schema";
+export * from "./voice-schema";
