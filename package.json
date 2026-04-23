@@ -95,6 +95,7 @@
     "tailwindcss": "^4.1.16",
     "tailwindcss-animate": "^1.0.7",
     "tldts": "^7.0.25",
+    "yaml": "^2.8.3",
     "zod": "^4.1.12"
   },
   "devDependencies": {
