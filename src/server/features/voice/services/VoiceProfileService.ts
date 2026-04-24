@@ -168,6 +168,27 @@ export class VoiceProfileService {
   async delete(profileId: string): Promise<void> {
     await db.delete(voiceProfiles).where(eq(voiceProfiles.id, profileId));
   }
+
+  /**
+   * Upsert (get or create + update) a voice profile for a client.
+   * If profile exists, updates it. If not, creates it.
+   *
+   * @param clientId - Client ID
+   * @param data - Partial profile data to set/update
+   * @returns Created or updated profile
+   */
+  async upsert(
+    clientId: string,
+    data: Partial<VoiceProfileInsert>
+  ): Promise<VoiceProfileSelect> {
+    const existing = await this.getByClientId(clientId);
+
+    if (existing) {
+      return this.update(existing.id, data);
+    }
+
+    return this.create(clientId, data);
+  }
 }
 
 /**
