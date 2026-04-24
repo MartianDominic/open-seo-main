@@ -12,6 +12,7 @@ import { createLogger } from "@/server/lib/logger";
 
 const log = createLogger({ module: "api/seo/voice-templates" });
 
+// @ts-expect-error - Route not yet in generated route tree
 export const Route = createFileRoute("/api/seo/voice-templates")({
   server: {
     handlers: {

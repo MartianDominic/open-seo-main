@@ -26,6 +26,7 @@ export { analyzePageVoice, aggregateVoiceResults, buildVoicePrompt } from "./ser
 // Phase 37-03: Profile and rules services
 export { voiceProfileService } from "./services/VoiceProfileService";
 export { protectionRulesService } from "./services/ProtectionRulesService";
+export { voiceTemplateService } from "./services/VoiceTemplateService";
 
 // Phase 37-04: Compliance and constraint services
 export {

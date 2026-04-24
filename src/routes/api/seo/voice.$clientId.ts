@@ -15,12 +15,18 @@ import { z } from "zod";
 
 const log = createLogger({ module: "api/seo/voice" });
 
+// Primary tone enum values (must match schema)
+const PRIMARY_TONES = [
+  "professional", "casual", "friendly", "authoritative", "playful",
+  "inspirational", "empathetic", "urgent", "conversational", "academic", "innovative"
+] as const;
+
 // Validation schema for voice profile updates
 const updateSchema = z.object({
   mode: z.enum(["preservation", "application", "best_practices"]).optional(),
   voiceStatus: z.enum(["draft", "active", "archived"]).optional(),
   voiceName: z.string().optional(),
-  primaryTone: z.string().optional(),
+  primaryTone: z.enum(PRIMARY_TONES).optional(),
   secondaryTones: z.array(z.string()).optional(),
   formalityLevel: z.number().min(1).max(10).optional(),
   personalityTraits: z.array(z.string()).optional(),
