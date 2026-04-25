@@ -44,6 +44,7 @@ export const detectedPatterns = pgTable(
     // Status
     status: text("status").default("active"), // 'active', 'resolved', 'dismissed'
     resolvedAt: timestamp("resolved_at", { withTimezone: true }),
+    dismissedAt: timestamp("dismissed_at", { withTimezone: true }),
 
     detectedAt: timestamp("detected_at", { withTimezone: true }).defaultNow(),
   },
