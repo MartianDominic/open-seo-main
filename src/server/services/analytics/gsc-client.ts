@@ -149,3 +149,53 @@ export function getGSCDateRange(mode: "incremental" | "backfill"): {
     endDate: endDate.toISOString().split("T")[0],
   };
 }
+
+/**
+ * Query-page metrics for cannibalization detection.
+ */
+export interface GSCQueryPageMetrics {
+  query: string;
+  pageUrl: string;
+  clicks: number;
+  impressions: number;
+  position: number;
+}
+
+/**
+ * Fetch query-page metrics for cannibalization detection.
+ * Returns all query-page combinations with their aggregate metrics.
+ *
+ * @param accessToken - Valid OAuth2 access token
+ * @param siteUrl - GSC site URL (e.g., "sc-domain:example.com")
+ * @param startDate - Start date (YYYY-MM-DD)
+ * @param endDate - End date (YYYY-MM-DD)
+ */
+export async function fetchGSCQueryPageMetrics(
+  accessToken: string,
+  siteUrl: string,
+  startDate: string,
+  endDate: string,
+): Promise<GSCQueryPageMetrics[]> {
+  const auth = new google.auth.OAuth2();
+  auth.setCredentials({ access_token: accessToken });
+
+  const searchconsole = google.searchconsole({ version: "v1", auth });
+
+  const response = await searchconsole.searchanalytics.query({
+    siteUrl,
+    requestBody: {
+      startDate,
+      endDate,
+      dimensions: ["query", "page"],
+      rowLimit: 25000,
+    },
+  });
+
+  return (response.data.rows || []).map((row) => ({
+    query: row.keys![0],
+    pageUrl: row.keys![1],
+    clicks: row.clicks ?? 0,
+    impressions: row.impressions ?? 0,
+    position: row.position ?? 0,
+  }));
+}

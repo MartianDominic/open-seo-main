@@ -7,7 +7,7 @@
  * - Calculates severity based on position gap
  * - Recommends primary page based on clicks
  */
-import { eq, and, inArray, sql } from "drizzle-orm";
+import { eq, and, inArray } from "drizzle-orm";
 import { db as appDb } from "@/db";
 import {
   keywordCannibalization,
@@ -15,6 +15,11 @@ import {
   type CannibalizationSeverity,
   type CompetingPage,
 } from "@/db/link-schema";
+import {
+  fetchGSCQueryPageMetrics,
+  getGSCDateRange,
+} from "@/server/services/analytics/gsc-client";
+import { getValidCredentials } from "@/server/services/analytics/google-auth";
 
 type AppDb = typeof appDb;
 
@@ -237,17 +242,36 @@ export class CannibalizationService {
   }
 
   /**
-   * Get GSC keyword data for a client.
-   * Note: In production, this would query the gsc_keywords table.
+   * Get GSC keyword data for a client via live GSC API.
+   * Fetches query-page metrics for cannibalization analysis.
    */
   private async getGscKeywordData(clientId: string): Promise<GscKeywordData[]> {
-    // This is a placeholder - in production, query the actual GSC data table
-    const result = await this.db
-      .select()
-      .from(sql`(SELECT 'placeholder' as keyword, '' as page_url, 0 as position, 0 as clicks WHERE false)`)
-      .where(sql`false`);
+    let credentials;
+    try {
+      credentials = await getValidCredentials(clientId);
+    } catch {
+      return [];
+    }
 
-    return result as unknown as GscKeywordData[];
+    if (!credentials.gscSiteUrl) {
+      return [];
+    }
+
+    const { startDate, endDate } = getGSCDateRange("incremental");
+
+    const metrics = await fetchGSCQueryPageMetrics(
+      credentials.accessToken,
+      credentials.gscSiteUrl,
+      startDate,
+      endDate
+    );
+
+    return metrics.map((m) => ({
+      keyword: m.query,
+      pageUrl: m.pageUrl,
+      position: m.position,
+      clicks: m.clicks,
+    }));
   }
 
   /**

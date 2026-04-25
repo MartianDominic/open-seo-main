@@ -2,67 +2,50 @@
  * Audit page detail view with SEO score and findings.
  * Phase 32: 107 SEO Checks Implementation
  */
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useLoaderData } from "@tanstack/react-router";
 import { ScoreCard } from "./-components/ScoreCard";
 import { FindingsPanel } from "./-components/FindingsPanel";
 
-// @ts-expect-error - Route path not in generated types yet
+interface Finding {
+  id: string;
+  checkId: string;
+  tier: number;
+  category: string;
+  passed: boolean;
+  severity: "critical" | "high" | "medium" | "low";
+  message: string;
+  details?: Record<string, unknown>;
+  autoEditable: boolean;
+  editRecipe?: Record<string, unknown>;
+}
+
+interface FindingsResponse {
+  score: number | null;
+  breakdown: { base: number; tier1: number; tier2: number; tier3: number } | null;
+  gates: string[];
+  findings: Finding[];
+  message?: string;
+}
+
 export const Route = createFileRoute("/_project/p/$projectId/audit/$pageId/")({
+  loader: async ({ params }) => {
+    const response = await fetch(`/api/audit/pages/${params.pageId}/findings`);
+    if (!response.ok) {
+      throw new Error("Failed to fetch findings");
+    }
+    return response.json() as Promise<FindingsResponse>;
+  },
   component: AuditPageDetail,
 });
 
 function AuditPageDetail() {
   const { projectId, pageId } = Route.useParams();
+  const data = useLoaderData({ from: Route.id });
 
-  // Placeholder data - will be replaced with actual API call
-  const mockScore = {
-    score: 78,
-    breakdown: { base: 60, tier1: 12.3, tier2: 4.5, tier3: 1.2 },
-    gates: [] as string[],
-  };
-
-  const mockFindings = [
-    {
-      id: "1",
-      checkId: "T1-01",
-      tier: 1,
-      category: "html-signals",
-      passed: true,
-      severity: "high" as const,
-      message: "Page has valid DOCTYPE declaration",
-      autoEditable: false,
-    },
-    {
-      id: "2",
-      checkId: "T1-05",
-      tier: 1,
-      category: "title-meta",
-      passed: false,
-      severity: "high" as const,
-      message: "Title tag is too long (78 characters, max 60)",
-      autoEditable: true,
-    },
-    {
-      id: "3",
-      checkId: "T1-10",
-      tier: 1,
-      category: "heading-structure",
-      passed: true,
-      severity: "medium" as const,
-      message: "Page has exactly one H1 tag",
-      autoEditable: false,
-    },
-    {
-      id: "4",
-      checkId: "T2-01",
-      tier: 2,
-      category: "content-quality",
-      passed: false,
-      severity: "medium" as const,
-      message: "Reading level too high (Grade 11, target Grade 9)",
-      autoEditable: true,
-    },
-  ];
+  const hasFindings = data.findings.length > 0;
+  const score = data.score ?? 0;
+  const breakdown = data.breakdown ?? { base: 60, tier1: 0, tier2: 0, tier3: 0 };
+  const gates = data.gates ?? [];
 
   return (
     <div className="space-y-6 p-6">
@@ -80,18 +63,26 @@ function AuditPageDetail() {
         </div>
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-3">
-        <div className="lg:col-span-1">
-          <ScoreCard
-            score={mockScore.score}
-            breakdown={mockScore.breakdown}
-            gates={mockScore.gates}
-          />
+      {!hasFindings ? (
+        <div className="rounded-lg border border-yellow-200 bg-yellow-50 p-4">
+          <p className="text-yellow-800">
+            No audit findings for this page yet. Run an audit to see results.
+          </p>
         </div>
-        <div className="lg:col-span-2">
-          <FindingsPanel findings={mockFindings} />
+      ) : (
+        <div className="grid gap-6 lg:grid-cols-3">
+          <div className="lg:col-span-1">
+            <ScoreCard
+              score={score}
+              breakdown={breakdown}
+              gates={gates}
+            />
+          </div>
+          <div className="lg:col-span-2">
+            <FindingsPanel findings={data.findings} />
+          </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }

@@ -10,6 +10,7 @@
 import { eq, and, count } from "drizzle-orm";
 import { db as appDb } from "@/db";
 import { linkGraph } from "@/db/link-schema";
+import { CannibalizationService } from "./CannibalizationService";
 import type {
   LinkOpportunitiesSelect,
   LinkSuggestionsInsert,
@@ -193,13 +194,14 @@ export class LinkSuggestionService {
 
   /**
    * Check if target URL is in a cannibalization set.
-   * For now, returns false as cannibalization detection is in Phase 35-05.
+   * Uses CannibalizationService to check active cannibalization issues.
    */
   private async isTargetCannibalized(
-    _targetUrl: string,
-    _clientId: string
+    targetUrl: string,
+    clientId: string
   ): Promise<boolean> {
-    return false;
+    const cannibalizationService = new CannibalizationService(this.db);
+    return cannibalizationService.isTargetCannibalized(targetUrl, clientId);
   }
 
   /**

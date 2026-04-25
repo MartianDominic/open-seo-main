@@ -348,6 +348,67 @@ export async function fetchRankedKeywordsRaw(
 }
 
 // ---------------------------------------------------------------------------
+// OnPage API wrappers
+// ---------------------------------------------------------------------------
+
+export interface OnPageInstantPageResult {
+  url: string;
+  fetch_html: string | null;
+  status_code: number;
+  content?: {
+    word_count?: number;
+  };
+}
+
+/**
+ * Fetch raw HTML content for URLs using DataForSEO OnPage API.
+ * Used for extracting H2s and word counts from competitor pages.
+ *
+ * @param urls - URLs to fetch (max 10 per request)
+ * @returns Array of fetch results with HTML content
+ */
+export async function fetchOnPageInstantPages(
+  urls: string[]
+): Promise<OnPageInstantPageResult[]> {
+  const tasks = urls.slice(0, 10).map((url) => ({
+    url,
+    enable_javascript: true,
+    load_resources: false,
+  }));
+
+  const responseRaw = await postDataforseo(
+    "/v3/on_page/instant_pages",
+    tasks
+  );
+
+  const response = dataforseoResponseSchema.parse(responseRaw);
+  const results: OnPageInstantPageResult[] = [];
+
+  for (const task of response.tasks ?? []) {
+    if (task.status_code === 20000 && task.result) {
+      for (const result of task.result) {
+        const items = (result.items ?? []) as Array<{
+          url?: string;
+          fetch_html?: string;
+          status_code?: number;
+          content?: { word_count?: number };
+        }>;
+        for (const item of items) {
+          results.push({
+            url: item.url ?? "",
+            fetch_html: item.fetch_html ?? null,
+            status_code: item.status_code ?? 0,
+            content: item.content,
+          });
+        }
+      }
+    }
+  }
+
+  return results;
+}
+
+// ---------------------------------------------------------------------------
 // SERP Analysis API wrapper (Google Organic Live)
 // ---------------------------------------------------------------------------
 
